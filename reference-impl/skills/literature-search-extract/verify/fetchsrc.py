@@ -176,6 +176,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 REDIRECT_CODES = (301, 302, 303, 307, 308)
 MAX_HOPS = 5
+CRLF = b"\r\n"  # named so f-string expressions hold no backslash (a SyntaxError before Python 3.12)
 
 
 def _open_once(req):  # selftest swaps this for a canned opener
@@ -201,6 +202,8 @@ def _http_get(url: str) -> tuple[int, bytes, str, str]:
             loc = (exc.headers.get("Location") if exc.headers else None) if exc.code in REDIRECT_CODES else None
             if loc:
                 nxt = urllib.parse.urljoin(url, loc)
+                if urllib.parse.urlsplit(nxt).scheme.lower() not in ("http", "https"):
+                    return exc.code, b"", "", nxt        # NOT opened: a file:, data: or ftp: hop is never followed
                 allowed, _, _ = access_policy.decide(access_policy.host_of(nxt), "script", pol)
                 if not allowed:
                     return exc.code, b"", "", nxt        # NOT requested: the caller refuses it by host
@@ -615,7 +618,7 @@ def selftest() -> int:
             sraw = Path(e.get("scratch_path", "")).read_bytes()
             ok("must-RECORD sha256_full matching the scratch bytes (feedback-loop.md: sha256_full proves the "
                "excerpt came from that text)", b"\n" in sraw and e.get("sha256_full") == sha256_bytes(sraw),
-               f"{sraw.count(b'\r\n')} CRLF in scratch")
+               f"{sraw.count(CRLF)} CRLF in scratch")
             # 4 max_per_run on landing host
             rc = cmd_fetch(A(run=str(run), url="https://landing.example/a2", name="landing2", oa=""))
             ok("must-REFUSE second document on a max_per_run 1 host", rc == 3)
@@ -670,7 +673,7 @@ def selftest() -> int:
                 def __exit__(self, *e): return False
 
             hops = {"https://doi.example/a": "https://banned.example/paper", "https://doi.example/b": "/moved",
-                    "https://open.example/moved": None}
+                    "https://open.example/moved": None, "https://doi.example/c": "file:///etc/hosts"}
 
             def fake_open(req):
                 u = req.full_url
@@ -694,6 +697,11 @@ def selftest() -> int:
                 ok("must-FOLLOW a redirect hop to an open host and return its bytes",
                    opened == ["https://doi.example/b", "https://open.example/moved"] and st == 200 and b"open body" in body,
                    f"opened={opened} status={st}")
+                opened.clear()
+                st, body, _, fin = _http_get("https://doi.example/c")
+                ok("must-NOT-OPEN a redirect hop to a non-http scheme (file:, data:)",
+                   opened == ["https://doi.example/c"] and fin == "file:///etc/hosts" and body == b"",
+                   f"opened={opened} final={fin}")
             finally:
                 _open_once = prev_open
             # 7 excerpt: ledger span -> window; full text gone from the run, span present
@@ -712,7 +720,7 @@ def selftest() -> int:
             xraw = (run / "sources" / "landing.txt").read_bytes()
             ok("must-RECORD excerpt state + sha", e.get("retention_state") == "excerpt" and e.get("sha256_file") == sha256_bytes(xraw))
             ok("must-WRITE the excerpt with the newline it was hashed with (no CRLF translation)",
-               b"\n" in xraw and xraw.count(b"\r\n") == 0, f"{xraw.count(b'\r\n')} CRLF in landing.txt")
+               b"\n" in xraw and xraw.count(b"\r\n") == 0, f"{xraw.count(CRLF)} CRLF in landing.txt")
             # 7b QA F-11: a second ledger row citing a new span in the same source re-derives the excerpt
             rc = cmd_excerpt(A(run=str(run), window=30))
             ok("must-SKIP an excerpt whose ledger spans are unchanged", rc == 0 and

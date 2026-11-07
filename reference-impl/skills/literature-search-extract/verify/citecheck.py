@@ -1379,22 +1379,36 @@ def selftest(tmp: Path, offline: bool = False) -> int:
     # CLI-level exit rules (review 2026-11-07): the value each defect changes is the printed count / exit code
     import subprocess as _sp
 
-    def _cli(lines: list[str], run_json: bool = True) -> tuple[int, str]:
+    def _cli(lines: list[str], run_json: bool = True, extra: tuple = (), enc: str = "utf-8",
+             split: bool = False):
         d = tmp / f"cli{len(list(tmp.glob('cli*')))}"
         d.mkdir()
-        (d / "ledger.jsonl").write_text("".join(l + "\n" for l in lines), encoding="utf-8")
+        (d / "ledger.jsonl").write_text("".join(l + "\n" for l in lines), encoding=enc)
         if run_json:
             (d / "run.json").write_text(json.dumps({"run": {"created": "2026-09-01"}}), encoding="utf-8")
-        p = _sp.run([sys.executable, "-X", "utf8", "-I", str(Path(__file__).resolve()), str(d / "ledger.jsonl"), "--offline"],
-                    capture_output=True, text=True, encoding="utf-8", errors="replace")
-        return p.returncode, p.stdout + p.stderr
+        p = _sp.run([sys.executable, "-X", "utf8", "-I", str(Path(__file__).resolve()), str(d / "ledger.jsonl"), "--offline",
+                     *extra], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        return (p.returncode, p.stdout, p.stderr) if split else (p.returncode, p.stdout + p.stderr)
+
+    def _parses(s: str) -> bool:
+        try:
+            json.loads(s)
+            return True
+        except ValueError:
+            return False
 
     _row = json.dumps({k: v for k, v in clean.items() if not k.startswith("_")}, ensure_ascii=False)
     _rc_ok, _out_ok = _cli([_row])
     _rc_bad, _out_bad = _cli([_row, "{not json"])
     _rc_empty, _out_empty = _cli([])
     _, _out_new = _cli([_row], run_json=False)
+    _, _js_out, _js_err = _cli([_row, "{not json"], run_json=False, extra=("--json",), split=True)
+    _rc_bom, _out_bom = _cli([_row], enc="utf-8-sig")
     pure += [
+        ("must-FAIL: with --json, stdout is pure JSON (diagnostics on stderr), so `--json > citecheck.json` parses",
+         _parses(_js_out) and "judged as a run created today" in _js_err and "unreadable ledger line" in _js_err),
+        ("must-FAIL: a UTF-8 BOM ledger (PowerShell) reads like the same ledger without one",
+         "unreadable ledger line" not in _out_bom and _rc_bom == _rc_ok),
         ("must-FAIL: a whitespace-only span is found in no text (it would be 'in' every text)",
          span_present("  \n\t", "any text at all") is False and span_present("any", "any text at all")),
         ("must-FAIL: one unreadable ledger line makes the run exit 1 (the same ledger without it reports none)",
@@ -1485,8 +1499,10 @@ def main() -> int:
         return 2
 
     path = Path(args.ledger)
+    # with --json, stdout is the JSON document (`--json > citecheck.json`): every diagnostic goes to stderr
+    say = (lambda s: print(s, file=sys.stderr)) if args.json else print
     if not path.exists():
-        print(f"ledger not found: {path}")
+        say(f"ledger not found: {path}")
         return 2
     base = path.resolve().parent
     manifest = load_manifest(base)
@@ -1495,23 +1511,23 @@ def main() -> int:
         # a run with no run.json (or no created date) is judged as a NEW run: a missing record must not buy
         # the legacy WARN side (review 2026-11-07). Pass --run-created to judge a genuinely old run as legacy.
         created = dt.date.today().isoformat()
-        print("run.json absent or undated — judged as a run created today (pass --run-created for an old run)")
+        say("run.json absent or undated — judged as a run created today (pass --run-created for an old run)")
     policy = access_policy.load() if access_policy else None
 
     rows = []
     unreadable = 0
-    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    for n, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):  # a PowerShell BOM is not a bad row
         line = line.strip()
         if not line or line.startswith("//"):
             continue
         try:
             obj = json.loads(line)
         except Exception as exc:                            # noqa: BLE001
-            print(f"line {n}: not JSON ({exc}) — FAIL (a row the gate cannot read is a claim it never checked)")
+            say(f"line {n}: not JSON ({exc}) — FAIL (a row the gate cannot read is a claim it never checked)")
             unreadable += 1
             continue
         if not isinstance(obj, dict):
-            print(f"line {n}: JSON but not an object ({type(obj).__name__}) — FAIL (QA F-13)")
+            say(f"line {n}: JSON but not an object ({type(obj).__name__}) — FAIL (QA F-13)")
             unreadable += 1
             continue
         rows.append(obj)
@@ -1537,10 +1553,10 @@ def main() -> int:
         if fails:
             print("A FAIL is not a style note: that claim may not ship as cited.")
     if unreadable:
-        print(f"{unreadable} unreadable ledger line(s) — exit 1")
+        say(f"{unreadable} unreadable ledger line(s) — exit 1")
         return 1
     if not rows:
-        print("ledger has no rows — nothing was checked, which is not a pass (exit 1)")
+        say("ledger has no rows — nothing was checked, which is not a pass (exit 1)")
         return 1
     return 1 if any(c[1] == "FAIL" for r in results for c in r["checks"]) else 0
 

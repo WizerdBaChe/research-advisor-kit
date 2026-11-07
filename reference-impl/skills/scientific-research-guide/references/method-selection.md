@@ -18,14 +18,14 @@
 | 兩組獨立比較 | 獨立樣本 t 檢定，**預設用 Welch**（不要用變異數前測在 Student／Welch 間挑選）[S2] | Mann-Whitney U / Wilcoxon 秩和（比的是分布位移／隨機優勢，不是平均值） |
 | 兩組配對比較 | 配對 t 檢定 | Wilcoxon 符號秩檢定 |
 | ≥3 組比較 | 單因子 ANOVA（變異不等用 Welch ANOVA） | Kruskal-Wallis |
-| ≥3 組之後：哪幾組不同 | 全配對 Tukey HSD；**各組對同一對照組** Dunnett | Dunn 檢定 + Holm 校正 |
+| ≥3 組之後：哪幾組不同 | 全配對 Tukey HSD（變異不等用 Games-Howell）；**各組對同一對照組** Dunnett | Dunn 檢定 + Holm 校正 |
 | 有順序的劑量／等級 | 趨勢對比（linear contrast）或劑量當連續變量迴歸 | Jonckheere-Terpstra 趨勢檢定 |
 | 重複量測／巢狀資料（同一樣本多次、技術重複） | 混合效應模型（mixed-effects model，樣本為隨機效應）；或先對技術重複取平均再比 | 同左（廣義混合模型）；Friedman（完整區組的重複量測） |
 | 兩分布是否相同 | — | Kolmogorov-Smirnov（參數由同一樣本估計時改用 Lilliefors）/ Anderson-Darling |
 | 類別 × 類別關聯 | — | Chi-square 卡方（期望次數小時用 Fisher exact） |
-
-> 整體檢定（ANOVA／Kruskal-Wallis）只回答「至少一組不同」，不回答哪幾組不同；要接上一列的事後比較，並依研究設計選（對照組設計 → Dunnett；劑量有序 → 趨勢檢定）。
 | 兩連續變量相關 | Pearson r | Spearman ρ / Kendall τ |
+
+> 整體檢定（ANOVA／Kruskal-Wallis）只回答「至少一組不同」，不回答哪幾組不同；要接上表的事後比較，並依研究設計選（對照組設計 → Dunnett；劑量有序 → 趨勢檢定）。用了 Welch ANOVA（變異不等）時，全配對比較改用 Games-Howell，不用假設變異相等的 Tukey HSD。
 
 報告要求（Nature）：單/雙尾、α、**確切 p 值**（非 p<0.05）、效果量（effect size）與 CI。
 

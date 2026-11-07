@@ -152,7 +152,7 @@ MUST_PASS = [
     # find|grep listing, a grep -l — and nothing is read.
     ("PowerShell", {"command": r"""$skip='\\(node_modules|\.venv|venv|dist|build|\.git|__pycache__|\.idea)(\\|$)'
 $cred='token|secret|\.pem$|\.key$|\\\.env'
-$roots=[ordered]@{ 'ArchLens'='X:\synth\work-root\ArchLens'; 'P2C-copy1'='D:\try\Paper2ChatAPP - 複製'; 'P2C-copy2'='D:\try\Paper2ChatAPP - 複製 (2)'; 'ArchLens_Series'='X:\synth\work-root\ArchLens_Series' }
+$roots=[ordered]@{ 'ArchLens'='X:\synth\work-root\ArchLens'; 'App-copy1'='X:\synth\work-root\SampleApp - 複製'; 'App-copy2'='X:\synth\work-root\SampleApp - 複製 (2)'; 'ArchLens_Series'='X:\synth\work-root\ArchLens_Series' }
 foreach($k in $roots.Keys){ $r=$roots[$k]; $f=Get-ChildItem -LiteralPath $r -Recurse -File -Force | Where-Object { $rel=$_.FullName.Substring($r.Length); ($rel -notmatch $skip) -and ($_.Name -notmatch 'token|secret|\.pem$|\.key$|^\.env') }
  $mn=($f|Sort-Object LastWriteTimeUtc|Select-Object -First 1); $mx=($f|Sort-Object LastWriteTimeUtc -Descending|Select-Object -First 1)
  $cn=($f|Sort-Object CreationTimeUtc|Select-Object -First 1); $cx=($f|Sort-Object CreationTimeUtc -Descending|Select-Object -First 1)

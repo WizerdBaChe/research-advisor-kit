@@ -9,7 +9,7 @@
  "reuse_check": {"ran_at": "2026-09-03T10:00:01+08:00", "terms": ["template-stripped", "ag", "薄膜在", "633", "nm", "spp", "傳播長度", "propagation", "length"],
                  "matches": [], "trail_line": "reuse check: none (index searched: yes)"},
  "result": {
-  "findings": "| parameter | value | unit | conditions | source |\n|---|---|---|---|---|\n| L_spp | 22 ± 3 | μm | λ = 633 nm; template-stripped Ag/air; intensity 1/e | (Park 2022, Table 2) [full] |",
+  "findings": "| parameter | value | unit | conditions | source |\n|---|---|---|---|---|\n| L_spp | 22 | μm | λ = 633 nm; template-stripped Ag/air; intensity 1/e | (Park 2022, Table 2) [full] |",
   "sources": [
    {"citation": "Park, J. et al. (2022). Ultrasmooth silver films for plasmonics. J. Placeholder Phot. 15, 234.",
     "identifier": "DOI: 10.0000/fake.2022.234", "key": "doi:10.0000/fake.2022.234", "aliases": [], "zotero_key": null,
