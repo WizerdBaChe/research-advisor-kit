@@ -39,3 +39,4 @@ Start at AGENTS.md. Pin a release tag, not main (current: https://github.com/Wiz
 - [CHANGELOG.md](CHANGELOG.md): versions
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): third-party material and runtime dependency licences
 - [verify/unshipped_paths.txt](verify/unshipped_paths.txt): origin paths deliberately not shipped, with the reason class
+- [docs/DESIGN-IDS.md](docs/DESIGN-IDS.md): the invariant (INV-n) and decision (D-Ln) ids the run-store code cites, defined in place because their design file is not shipped

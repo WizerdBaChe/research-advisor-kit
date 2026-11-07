@@ -43,6 +43,8 @@ Fixes found by four outside agents' reviews of v1.0.1 (one ran the controls on m
 
 ### Added
 
+- `docs/DESIGN-IDS.md`: the INV-n and D-Ln ids the run-store code cites, defined in place (their design
+  file is not shipped). Eval case 2 also fails an answer that offers a bootstrap as the small-n first choice.
 - `verify/requirements.txt`; README "try the citation check in 30 seconds" with no agent, no key, no
   network; the agent install prompt pins the release tag.
 
