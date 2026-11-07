@@ -22,7 +22,7 @@
 - Branch: feat/research-state-mechanism.
 
 ### ② scripts/ deterministic analysis tools (wait for repeated need to emerge; don't build ahead of time)
-- Candidates: statistical-test selector, Bootstrap 95% CI (5000 iterations),
+- Candidates: statistical-test selector, Bootstrap 95% CI (>=10,000 resamples, interval type stated; method-selection.md [S1]),
   four-panel residual diagnostics, PRISMA counter.
 - Principle: skill-creator's "package only once you see repetition" — the same
   analysis must be hand-written ≥2 times in actual use before it's worth

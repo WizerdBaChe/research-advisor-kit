@@ -71,9 +71,10 @@
           "evidence": "Table row '≥3 groups': ANOVA if normal else Kruskal-Wallis — criterion-based, not a single name."
         },
         {
-          "text": "Mentions small-sample caution and/or post-hoc multiple-comparison correction",
+          "text": "States that an omnibus test (ANOVA/Kruskal-Wallis) does not say which groups differ and names a follow-up fitted to THIS design — Dunnett (low/high vs control) or a trend test for the ordered dose (or Dunn/Tukey with Holm) — plus a small-n caveat (n=6 per group: low power, report effect size and CI). 'Use nonparametric/bootstrap' alone FAILS.",
           "passed": true,
-          "evidence": "Criterion 4 flags small n → nonparametric/bootstrap; Gate A risk item names a missing multiple-comparison plan at Tier 5."
+          "evidence": "method-selection.md §1: the '≥3 組之後' row names Tukey/Dunnett/Dunn+Holm, the '有順序的劑量' row names a linear contrast / Jonckheere-Terpstra, and the note under the table says the omnibus test only says 'at least one group differs' (control design → Dunnett, ordered dose → trend test); criterion 4 states the small-n limit. Tightened 2026-11-07 after an external review showed the old assertion ('small-sample caution and/or post-hoc') passed on 'switch to nonparametric/bootstrap' while the skill named no post-hoc test at all. Regraded protocol-level by the authoring session (no subagent), same rule as case 15: the OLD method-selection.md fails this assertion (no Dunnett, Tukey, Dunn or trend test anywhere in the skill), the new one passes it.",
+          "regraded": "2026-11-07"
         },
         {
           "text": "Explains the reasoning so the user can defend the choice",

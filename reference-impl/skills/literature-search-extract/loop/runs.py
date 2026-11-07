@@ -506,6 +506,12 @@ def cmd_register(a) -> int:
         print("FAIL register: ledger rows exist but citecheck.json is missing — run `verify/citecheck.py "
               f"{run_dir / 'ledger.jsonl'} --json > {run_dir / 'citecheck.json'}` first (INV-1)")
         return 2
+    cc_fail = (run["ledger"].get("citecheck") or {}).get("fail") or 0
+    if cc_fail:
+        # V8 used to catch this only AFTER the run was marked delivered (review 2026-11-07): refuse it here
+        print(f"FAIL register: citecheck.json carries {cc_fail} FAIL — a claim the gate rejected may not be delivered "
+              "as cited (failure mode #8). Fix or drop the row, re-run citecheck, then register; nothing written")
+        return 2
     if not run.get("deliverables"):
         run["deliverables"] = [{"kind": "inline", "path": None, "consumer": run["request"].get("caller", "user")}]
     if not run.get("review_when"):

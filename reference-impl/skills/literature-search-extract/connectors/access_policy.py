@@ -292,13 +292,17 @@ def selftest() -> int:
     # policy unreadable: fail closed, except OPEN_CORE script/webfetch
     with tempfile.TemporaryDirectory() as tmp:
         missing = Path(tmp) / "nope.json"
+        prev_env = os.environ.get("LSE_HOST_POLICY")   # restored, not dropped: the live check below reads it
         os.environ["LSE_HOST_POLICY"] = str(missing)
         try:
             a1 = decide("link.springer.com", "webfetch", load())[0]
             a2 = decide("api.crossref.org", "script", load())[0]
             a3 = decide("api.crossref.org", "browser_headless", load())[0]
         finally:
-            os.environ.pop("LSE_HOST_POLICY", None)
+            if prev_env is None:
+                os.environ.pop("LSE_HOST_POLICY", None)
+            else:
+                os.environ["LSE_HOST_POLICY"] = prev_env
     for label, got, want in [("must-REFUSE any non-core host when the policy is unreadable", a1, False),
                              ("must-ALLOW OPEN_CORE script when the policy is unreadable", a2, True),
                              ("must-REFUSE OPEN_CORE browser when the policy is unreadable", a3, False)]:

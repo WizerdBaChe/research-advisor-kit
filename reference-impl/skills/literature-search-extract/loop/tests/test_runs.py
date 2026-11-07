@@ -85,6 +85,22 @@ class TestOpenAndRegister(TempHome):
         self.assertEqual(runs.load_index(runs.home())["entries"], [])
         self.assertIn("reuse_check", buf.getvalue())
 
+    def test_register_refuses_a_failing_citecheck(self):
+        # review 2026-11-07: the same good run registers with fail=0 and is refused with fail=1
+        d = self.place_good()
+        cc = json.loads((d / "citecheck.json").read_text(encoding="utf-8"))
+        cc["fail"] = 1
+        cc["rows"][0]["checks"][0]["verdict"] = "FAIL"
+        (d / "citecheck.json").write_text(json.dumps(cc), encoding="utf-8")
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = runs.cmd_register(ns(run_dir=str(d)))
+        self.assertEqual(rc, 2)
+        self.assertIn("carries 1 FAIL", buf.getvalue())
+        self.assertNotEqual(runs.load_run(d)["run"]["state"], "delivered")
+
     def test_register_good_then_find_both_languages(self):
         d = self.place_good()
         import io

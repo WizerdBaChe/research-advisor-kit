@@ -125,9 +125,11 @@ refutable instead of turning into folklore:
   scientific text is unaffected; the trigger is a run whose sources are in a conjoining
   script.
 
-Calibration is two-sided and shipped: `citecheck.py --selftest` runs **81 cases, 45
-must-pass / 36 must-fail** (measured 2026-09-12 after the line-ending, normalizer and
-range/list rounds; `--selftest` and `--selftest --offline` both green, 0 broken — the
+Calibration is two-sided and shipped: `citecheck.py --selftest` runs **105 cases, 53
+must-pass / 52 must-fail** (measured 2026-11-07 after the blank-span, unreadable-row,
+empty-ledger and missing-run.json cases; 81 cases on 2026-09-12 after the line-ending,
+normalizer and range/list rounds. Without PyMuPDF the page-pointer cases are SKIPPED and the
+tally line says so; `--selftest` and `--selftest --offline` both green, 0 broken — the
 count is what the run prints, not a number kept by hand). v1's 11 cases are kept unchanged; the v2 cases cover
 the table above plus the QA regressions of the same day (a flipped sign is a different
 number; `Fig. 3` is structure, `3 nm` is a value; `expect_authors` as a bare string is one

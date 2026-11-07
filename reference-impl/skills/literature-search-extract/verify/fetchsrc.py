@@ -167,25 +167,53 @@ def looks_challenged(status: int, body_head: str) -> bool:
     return any(k in low for k in CHALLENGE_MARKERS)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """urllib must not follow a redirect on its own: each hop is judged BEFORE it is requested."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401, ANN001
+        return None
+
+
+REDIRECT_CODES = (301, 302, 303, 307, 308)
+MAX_HOPS = 5
+
+
+def _open_once(req):  # selftest swaps this for a canned opener
+    return urllib.request.build_opener(_NoRedirect).open(req, timeout=TIMEOUT)
+
+
 def _http_get(url: str) -> tuple[int, bytes, str, str]:
-    """(status, body, content_type, final_url). ONE request. urllib follows redirects itself, so the
-    bytes may come from another host: `final_url` is what the caller re-judges against the policy
-    (QA 2026-09-11 F-3 — the policy decision is made on the host the bytes actually came from)."""
-    host = access_policy.host_of(url)
-    contact = CONTACT_BY_HOST.get(host)
-    ua = f"{_BASE_UA} mailto:{contact}" if contact else _BASE_UA
-    req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept": "text/html,application/pdf,application/json,text/plain,*/*"})
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return r.status, r.read(MAX_BYTES), (r.headers.get("Content-Type") or ""), (r.url or url)
-    except urllib.error.HTTPError as exc:
+    """(status, body, content_type, final_url). Follows at most MAX_HOPS redirects itself and judges
+    every hop's host against the policy BEFORE sending it: a DOI resolver that redirects to a banned
+    publisher never gets that request sent (review 2026-11-07; before, urllib followed the redirect and
+    the host was re-judged only after the bytes arrived). A refused hop returns (status, b"", "", hop url):
+    the caller re-judges that url's host (QA 2026-09-11 F-3) and refuses with nothing stored."""
+    pol = access_policy.load()
+    for _ in range(MAX_HOPS + 1):
+        host = access_policy.host_of(url)
+        contact = CONTACT_BY_HOST.get(host)
+        ua = f"{_BASE_UA} mailto:{contact}" if contact else _BASE_UA
+        req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept": "text/html,application/pdf,application/json,text/plain,*/*"})
         try:
-            body = exc.read(200_000)
-        except Exception:                                # noqa: BLE001
-            body = b""
-        return exc.code, body, ((exc.headers.get("Content-Type") or "") if exc.headers else ""), (getattr(exc, "url", "") or url)
-    except Exception as exc:                             # noqa: BLE001
-        return 0, str(exc).encode("utf-8", "replace"), "", url
+            with _open_once(req) as r:
+                return r.status, r.read(MAX_BYTES), (r.headers.get("Content-Type") or ""), (r.url or url)
+        except urllib.error.HTTPError as exc:
+            loc = (exc.headers.get("Location") if exc.headers else None) if exc.code in REDIRECT_CODES else None
+            if loc:
+                nxt = urllib.parse.urljoin(url, loc)
+                allowed, _, _ = access_policy.decide(access_policy.host_of(nxt), "script", pol)
+                if not allowed:
+                    return exc.code, b"", "", nxt        # NOT requested: the caller refuses it by host
+                url = nxt
+                continue
+            try:
+                body = exc.read(200_000)
+            except Exception:                            # noqa: BLE001
+                body = b""
+            return exc.code, body, ((exc.headers.get("Content-Type") or "") if exc.headers else ""), (getattr(exc, "url", "") or url)
+        except Exception as exc:                         # noqa: BLE001
+            return 0, str(exc).encode("utf-8", "replace"), "", url
+    return 0, f"more than {MAX_HOPS} redirects".encode(), "", url
 
 
 HTTP_GET = _http_get   # selftest swaps this for a canned responder (3- or 4-tuple accepted)
@@ -631,6 +659,43 @@ def selftest() -> int:
             ok("must-ALLOW a redirect that stays on an open host and record the final URL",
                rc == 0 and e.get("host") == "www.open.example" and e.get("url") == "https://www.open.example/moved", f"rc={rc} {e.get('url')}")
             ok("must-KEEP pacing state out of the manifest (QA F-16)", "_last_fetch" not in m)
+            # 6d review 2026-11-07: the TRANSPORT judges each redirect hop before sending it
+            global _open_once
+            opened: list[str] = []
+
+            class _Resp:
+                def __init__(self, u): self.status, self.url, self.headers = 200, u, {"Content-Type": "text/html"}
+                def read(self, n=-1): return b"<html><p>open body</p></html>"
+                def __enter__(self): return self
+                def __exit__(self, *e): return False
+
+            hops = {"https://doi.example/a": "https://banned.example/paper", "https://doi.example/b": "/moved",
+                    "https://open.example/moved": None}
+
+            def fake_open(req):
+                u = req.full_url
+                opened.append(u)
+                to = hops.get(u.replace("https://open.example/b", "https://doi.example/b"))
+                if u == "https://doi.example/b":
+                    raise urllib.error.HTTPError(u, 302, "Found", {"Location": "https://open.example/moved"}, None)
+                if to:
+                    raise urllib.error.HTTPError(u, 302, "Found", {"Location": to}, None)
+                return _Resp(u)
+
+            prev_open = _open_once
+            _open_once = fake_open
+            try:
+                st, body, _, fin = _http_get("https://doi.example/a")
+                ok("must-NOT-SEND a redirect hop to a banned host (resolver -> publisher)",
+                   "https://banned.example/paper" not in opened and fin == "https://banned.example/paper" and body == b"",
+                   f"opened={opened} final={fin}")
+                opened.clear()
+                st, body, _, fin = _http_get("https://doi.example/b")
+                ok("must-FOLLOW a redirect hop to an open host and return its bytes",
+                   opened == ["https://doi.example/b", "https://open.example/moved"] and st == 200 and b"open body" in body,
+                   f"opened={opened} status={st}")
+            finally:
+                _open_once = prev_open
             # 7 excerpt: ledger span -> window; full text gone from the run, span present
             ledger = run / "ledger.jsonl"
             ledger.write_text(json.dumps({"claim_id": "C1", "claim": "roughness 0.4 nm RMS", "source_id": "10.1000/x",

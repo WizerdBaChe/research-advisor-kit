@@ -194,8 +194,11 @@ volatile 外部事實，Gate B 查證後才可寫）、V&V 錨點、驗收偏差
 **5.5 多重比較校正** — 同時多檢定時 Type-I 錯誤率膨脹必須校正。Bonferroni（保守）/
 Benjamini-Hochberg FDR（較寬鬆）。**忽略此步是頂尖期刊審稿最常見的統計錯誤之一。**
 
-**5.6 Bootstrap 信賴區間** — 小樣本或分布未知時優先（勝過假設常態）。標準做法：5000 次重抽樣
-取 95% CI。
+**5.6 Bootstrap 信賴區間** — 分布未知、樣本量中等時估參數不確定性；**不能補救極小樣本**
+（percentile 區間在小樣本覆蓋不足）。用 ≥10,000 次重抽樣（percentile 區間 ≥15,000）並寫明區間類型；
+極小樣本改用精確／置換檢定或 t 區間並寫明限制。出處見 method-selection.md [S1]。（上方 Nature
+Communications 那篇本身用 5000 次 bootstrap 做一般組間比較、小樣本組改用 Kruskal-Wallis／Wilcoxon，
+它不是「小樣本優先 Bootstrap」或「5000 次為標準」的依據；2026-11-07 依外部審閱修正。）
 
 **5.7 效能評估指標** — 依任務選（見 method-selection.md）：分類 F1/AUC-ROC/Precision-Recall；
 分割 Dice(iDSC)/IoU；預測 C-statistic/AIC/BIC；迴歸 R²/RMSE/MAE。閾值設定須說明依據。

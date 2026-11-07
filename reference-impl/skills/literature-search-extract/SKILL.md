@@ -6,8 +6,8 @@ description: >-
   caller-specified deliverable (evidence tables, method comparisons, parameter sheets,
   annotated bibliographies) with full citation traceability; zero fabricated citations.
   Trigger on 「幫我找 X 主題的論文」「這篇 paper 的重點」「教科書怎麼定義 X」「查這個參數的文獻值」, or when another skill
-  invokes it as a sub-service with a request contract. NOT for uncited broad sweeps (→ a T4
-  research dispatch, ops/20-dispatch.md §6) or advising the user's OWN study methodology (→
+  invokes it as a sub-service with a request contract. NOT for uncited broad sweeps (→ a broad
+  research sweep by another agent; this kit ships none) or advising the user's OWN study methodology (→
   scientific-research-guide).
 ---
 
@@ -29,7 +29,9 @@ skills that need literature input mid-workflow.
   author list, numeric value, or quotation. An honest gap is a valid deliverable; a
   plausible-looking fake reference is this skill's worst failure — and **attaching a real
   source to a claim it does not make is the same sin better disguised** (failure mode #8,
-  caught at P4.5). "Not found in searched sources" is itself a claim: failure mode #10.
+  narrowed at P4.5: the gate proves the quoted span is in the retrieved text, never that it
+  supports the claim — see verification-gate.md "Never ruled on"). "Not found in searched
+  sources" is itself a claim: failure mode #10.
 - **Access honesty.** Distinguish what you actually read. Tag every source with an access
   level (see P3) and never present abstract-only knowledge as if the full text was read.
 - **Copyright boundary.** Quote sparingly (short excerpts with quotation marks + locator);

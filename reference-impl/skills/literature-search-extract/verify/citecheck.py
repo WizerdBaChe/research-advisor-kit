@@ -174,7 +174,8 @@ def _doc_numbers(pres) -> list[str] | None:
 
 
 def span_present(span: str, haystack: str) -> bool:
-    return bool(span) and norm(span) in norm(haystack)
+    s = norm(span or "")
+    return bool(s.strip()) and s in norm(haystack)  # a blank span is "in" every text (review 2026-11-07)
 
 
 def fold_marks(s: str) -> str:
@@ -1135,86 +1136,96 @@ def selftest(tmp: Path, offline: bool = False) -> int:
     ]
 
     # ---- v3 cases: page pointers (pagestore.py) — hermetic: a 3-page PDF + a fake OCR book ----
-    import shutil as _sh
-    import fitz  # noqa: PLC0415
-    pdir = tmp / "pp"
-    if pdir.exists():
-        _sh.rmtree(pdir)
-    pdir.mkdir()
-    pt_pdf = pdir / "lecture.pdf"
-    _doc = fitz.open()
-    for _t in ("The bandgap of silicon is 1.12 eV at 300 K.",
-               "Minority carriers diffuse until they recom-",
-               "bine at the surface. Lifetime is 10 us."):
-        _doc.new_page().insert_text((72, 72), _t)
-    _doc.save(pt_pdf)
-    _doc.close()
-    _sh.copy(pt_pdf, pdir / "edited.pdf")
-    pagestore.build_store(pt_pdf)
-    pagestore.build_store(pdir / "edited.pdf")
-    _s1, _psha = pagestore.stamp("pages:pp/lecture.pdf#p=1", tmp)
-    _s2, _ = pagestore.stamp("pages:pp/lecture.pdf#p=2", tmp)
-    _s23, _ = pagestore.stamp("pages:pp/lecture.pdf#p=2-3", tmp)
-    _s3, _ = pagestore.stamp("pages:pp/lecture.pdf#p=3", tmp)
-    _se, _pse = pagestore.stamp("pages:pp/edited.pdf#p=1", tmp)
-    _ef = pagestore.store_dir(pdir / "edited.pdf") / "0001.txt"
-    _ef.write_bytes(_ef.read_bytes().replace(b"1.12", b"1.21"))      # edited AFTER the row was stamped
-    ocr_pdf = pdir / "book.pdf"
-    _sh.copy(pt_pdf, ocr_pdf)
-    (pdir / "book.ocr" / "text").mkdir(parents=True)
-    (pdir / "book.ocr" / "manifest.json").write_text(json.dumps({"schema": "textbook-ocr/manifest@1", "pages": [
-        {"page": 1, "status": "ok"}, {"page": 2, "status": "excluded"}, {"page": 3, "status": "sparse"}]}), encoding="utf-8")
-    (pdir / "book.ocr" / "text" / "0001.txt").write_text("Energy gap of Si: 1.12 eV.\n", encoding="utf-8")
-    (pdir / "book.ocr" / "text" / "0003.txt").write_text("Fig. 3 (partly legible) carrier lifetime\n", encoding="utf-8")
-    _ocr_sha = pagestore.pdf_sha(ocr_pdf)
-    _lib_prev = pagestore.LIBRARY_OVERRIDE
-    pagestore.LIBRARY_OVERRIDE = {"books": [{"id": "Fake OCR Book", "path": str(ocr_pdf), "sha256": _ocr_sha, "pages": 3,
-                                             "access": "ocr-sidecar", "calibration": {"status": "ok", "segments": [
-                                                 {"pdf_from": 1, "pdf_to": 3, "offset": 0}]}}]}
-    pagestore.LIBRARY_OVERRIDE["books"].append({**pagestore.LIBRARY_OVERRIDE["books"][0], "id": "Rejected Copy",
-                                                "sha256": "0" * 64})
-    _adm_prev = pagestore.ADMISSION_OVERRIDE
-    pagestore.ADMISSION_OVERRIDE = {"books": {"Rejected Copy": {"status": "rejected", "reason": "selftest: rejected copy"}}}
-    _o1, _ = pagestore.stamp("textbook:Fake OCR Book#p=1", tmp)
-    _o3, _ = pagestore.stamp("textbook:Fake OCR Book#p=3", tmp)
-    pt = {**clean, "claim_id": "PT", "claim": "The slide states the silicon bandgap.", "locator": "slide 1",
-          "support_span": "The bandgap of silicon is", "source_text": "pages:pp/lecture.pdf#p=1",
-          "page_sha256": _s1, "pdf_sha256": _psha, "access_route": "local_pdf"}
-    ob = {**pt, "claim_id": "OB", "locator": "p. 1", "support_span": "Energy gap of Si",
-          "source_text": "textbook:Fake OCR Book#p=1", "page_sha256": _o1, "pdf_sha256": _ocr_sha[:16]}
-    ptr_cases = [
-        ("must-PASS: page pointer — span on the cited page, page + pdf hashes match", pt, False),
-        ("must-FAIL: page pointer — span is on p1 but the row cites p2",
-         {**pt, "source_text": "pages:pp/lecture.pdf#p=2", "page_sha256": _s2}, True),
-        ("must-PASS: page pointer range — a word hyphenated across the page break",
-         {**pt, "support_span": "diffuse until they recombine at the surface", "source_text": "pages:pp/lecture.pdf#p=2-3",
-          "page_sha256": _s23}, False),
-        ("must-FAIL: page pointer — the row's page_sha256 is not the page's", {**pt, "page_sha256": ["0" * 16]}, True),
-        ("must-FAIL: page pointer — store page edited after the row was written (span still present)",
-         {**pt, "source_text": "pages:pp/edited.pdf#p=1", "page_sha256": _se, "pdf_sha256": _pse}, True),
-        ("must-FAIL: page pointer row with no page_sha256", {k: v for k, v in pt.items() if k != "page_sha256"}, True),
-        ("must-PASS (WARN): page pointer — PDF replaced since the row was written", {**pt, "pdf_sha256": "f" * 16}, False),
-        ("must-FAIL: page pointer — page beyond the PDF", {**pt, "source_text": "pages:pp/lecture.pdf#p=9"}, True),
-        ("must-FAIL: page pointer — malformed pointer", {**pt, "source_text": "pages:pp/lecture.pdf"}, True),
-        ("must-PASS (WARN): page pointer — a number outside the span but elsewhere in the document (1.12 on p1, p3 cited)",
-         {**pt, "claim": "Lifetime is 10 us with a 1.12 eV gap.", "support_span": "Lifetime is 10 us",
-          "source_text": "pages:pp/lecture.pdf#p=3", "page_sha256": _s3}, False),
-        ("must-FAIL: page pointer — a number the whole document never carries (1.42 eV)",
-         {**pt, "claim": "Lifetime is 10 us with a 1.42 eV gap.", "support_span": "Lifetime is 10 us",
-          "source_text": "pages:pp/lecture.pdf#p=3", "page_sha256": _s3}, True),
-        ("must-FAIL: page pointer with access_route script", {**pt, "access_route": "script"}, True),
-        ("must-PASS: OCR book page, status ok", ob, False),
-        ("must-FAIL: OCR book page excluded", {**ob, "source_text": "textbook:Fake OCR Book#p=2", "page_sha256": ["x"]}, True),
-        ("must-FAIL: [full] on a sparse OCR page",
-         {**ob, "support_span": "carrier lifetime", "source_text": "textbook:Fake OCR Book#p=3", "page_sha256": _o3}, True),
-        ("must-PASS (WARN): locator printed page disagrees with the calibrated pointer page", {**ob, "locator": "p. 40"}, False),
-        ("must-PASS: book renamed — found again by pdf_sha256", {**ob, "source_text": "textbook:Old Name#p=1"}, False),
-        ("must-FAIL: unknown book and no pdf_sha256",
-         {k: v for k, v in ob.items() if k != "pdf_sha256"} | {"source_text": "textbook:Old Name#p=1"}, True),
-        ("must-FAIL: a source the admission rulings reject", {**ob, "source_text": "textbook:Rejected Copy#p=1"}, True),
-        ("must-PASS (WARN): OCR book, numeric claim — admission limits numbers, does not reject",
-         {**ob, "claim": "Energy gap of Si is 1.12 eV.", "support_span": "Energy gap of Si: 1.12 eV"}, False),
-    ]
+    # PyMuPDF is optional: without it these cases are SKIPPED and the tally says so (a skip is not a pass).
+    def _ptr_fixture():
+        import fitz  # noqa: PLC0415
+        import shutil as _sh
+        pdir = tmp / "pp"
+        if pdir.exists():
+            _sh.rmtree(pdir)
+        pdir.mkdir()
+        pt_pdf = pdir / "lecture.pdf"
+        _doc = fitz.open()
+        for _t in ("The bandgap of silicon is 1.12 eV at 300 K.",
+                   "Minority carriers diffuse until they recom-",
+                   "bine at the surface. Lifetime is 10 us."):
+            _doc.new_page().insert_text((72, 72), _t)
+        _doc.save(pt_pdf)
+        _doc.close()
+        _sh.copy(pt_pdf, pdir / "edited.pdf")
+        pagestore.build_store(pt_pdf)
+        pagestore.build_store(pdir / "edited.pdf")
+        _s1, _psha = pagestore.stamp("pages:pp/lecture.pdf#p=1", tmp)
+        _s2, _ = pagestore.stamp("pages:pp/lecture.pdf#p=2", tmp)
+        _s23, _ = pagestore.stamp("pages:pp/lecture.pdf#p=2-3", tmp)
+        _s3, _ = pagestore.stamp("pages:pp/lecture.pdf#p=3", tmp)
+        _se, _pse = pagestore.stamp("pages:pp/edited.pdf#p=1", tmp)
+        _ef = pagestore.store_dir(pdir / "edited.pdf") / "0001.txt"
+        _ef.write_bytes(_ef.read_bytes().replace(b"1.12", b"1.21"))      # edited AFTER the row was stamped
+        ocr_pdf = pdir / "book.pdf"
+        _sh.copy(pt_pdf, ocr_pdf)
+        (pdir / "book.ocr" / "text").mkdir(parents=True)
+        (pdir / "book.ocr" / "manifest.json").write_text(json.dumps({"schema": "textbook-ocr/manifest@1", "pages": [
+            {"page": 1, "status": "ok"}, {"page": 2, "status": "excluded"}, {"page": 3, "status": "sparse"}]}), encoding="utf-8")
+        (pdir / "book.ocr" / "text" / "0001.txt").write_text("Energy gap of Si: 1.12 eV.\n", encoding="utf-8")
+        (pdir / "book.ocr" / "text" / "0003.txt").write_text("Fig. 3 (partly legible) carrier lifetime\n", encoding="utf-8")
+        _ocr_sha = pagestore.pdf_sha(ocr_pdf)
+        _lib_prev = pagestore.LIBRARY_OVERRIDE
+        pagestore.LIBRARY_OVERRIDE = {"books": [{"id": "Fake OCR Book", "path": str(ocr_pdf), "sha256": _ocr_sha, "pages": 3,
+                                                 "access": "ocr-sidecar", "calibration": {"status": "ok", "segments": [
+                                                     {"pdf_from": 1, "pdf_to": 3, "offset": 0}]}}]}
+        pagestore.LIBRARY_OVERRIDE["books"].append({**pagestore.LIBRARY_OVERRIDE["books"][0], "id": "Rejected Copy",
+                                                    "sha256": "0" * 64})
+        _adm_prev = pagestore.ADMISSION_OVERRIDE
+        pagestore.ADMISSION_OVERRIDE = {"books": {"Rejected Copy": {"status": "rejected", "reason": "selftest: rejected copy"}}}
+        _o1, _ = pagestore.stamp("textbook:Fake OCR Book#p=1", tmp)
+        _o3, _ = pagestore.stamp("textbook:Fake OCR Book#p=3", tmp)
+        pt = {**clean, "claim_id": "PT", "claim": "The slide states the silicon bandgap.", "locator": "slide 1",
+              "support_span": "The bandgap of silicon is", "source_text": "pages:pp/lecture.pdf#p=1",
+              "page_sha256": _s1, "pdf_sha256": _psha, "access_route": "local_pdf"}
+        ob = {**pt, "claim_id": "OB", "locator": "p. 1", "support_span": "Energy gap of Si",
+              "source_text": "textbook:Fake OCR Book#p=1", "page_sha256": _o1, "pdf_sha256": _ocr_sha[:16]}
+        ptr_cases = [
+            ("must-PASS: page pointer — span on the cited page, page + pdf hashes match", pt, False),
+            ("must-FAIL: page pointer — span is on p1 but the row cites p2",
+             {**pt, "source_text": "pages:pp/lecture.pdf#p=2", "page_sha256": _s2}, True),
+            ("must-PASS: page pointer range — a word hyphenated across the page break",
+             {**pt, "support_span": "diffuse until they recombine at the surface", "source_text": "pages:pp/lecture.pdf#p=2-3",
+              "page_sha256": _s23}, False),
+            ("must-FAIL: page pointer — the row's page_sha256 is not the page's", {**pt, "page_sha256": ["0" * 16]}, True),
+            ("must-FAIL: page pointer — store page edited after the row was written (span still present)",
+             {**pt, "source_text": "pages:pp/edited.pdf#p=1", "page_sha256": _se, "pdf_sha256": _pse}, True),
+            ("must-FAIL: page pointer row with no page_sha256", {k: v for k, v in pt.items() if k != "page_sha256"}, True),
+            ("must-PASS (WARN): page pointer — PDF replaced since the row was written", {**pt, "pdf_sha256": "f" * 16}, False),
+            ("must-FAIL: page pointer — page beyond the PDF", {**pt, "source_text": "pages:pp/lecture.pdf#p=9"}, True),
+            ("must-FAIL: page pointer — malformed pointer", {**pt, "source_text": "pages:pp/lecture.pdf"}, True),
+            ("must-PASS (WARN): page pointer — a number outside the span but elsewhere in the document (1.12 on p1, p3 cited)",
+             {**pt, "claim": "Lifetime is 10 us with a 1.12 eV gap.", "support_span": "Lifetime is 10 us",
+              "source_text": "pages:pp/lecture.pdf#p=3", "page_sha256": _s3}, False),
+            ("must-FAIL: page pointer — a number the whole document never carries (1.42 eV)",
+             {**pt, "claim": "Lifetime is 10 us with a 1.42 eV gap.", "support_span": "Lifetime is 10 us",
+              "source_text": "pages:pp/lecture.pdf#p=3", "page_sha256": _s3}, True),
+            ("must-FAIL: page pointer with access_route script", {**pt, "access_route": "script"}, True),
+            ("must-PASS: OCR book page, status ok", ob, False),
+            ("must-FAIL: OCR book page excluded", {**ob, "source_text": "textbook:Fake OCR Book#p=2", "page_sha256": ["x"]}, True),
+            ("must-FAIL: [full] on a sparse OCR page",
+             {**ob, "support_span": "carrier lifetime", "source_text": "textbook:Fake OCR Book#p=3", "page_sha256": _o3}, True),
+            ("must-PASS (WARN): locator printed page disagrees with the calibrated pointer page", {**ob, "locator": "p. 40"}, False),
+            ("must-PASS: book renamed — found again by pdf_sha256", {**ob, "source_text": "textbook:Old Name#p=1"}, False),
+            ("must-FAIL: unknown book and no pdf_sha256",
+             {k: v for k, v in ob.items() if k != "pdf_sha256"} | {"source_text": "textbook:Old Name#p=1"}, True),
+            ("must-FAIL: a source the admission rulings reject", {**ob, "source_text": "textbook:Rejected Copy#p=1"}, True),
+            ("must-PASS (WARN): OCR book, numeric claim — admission limits numbers, does not reject",
+             {**ob, "claim": "Energy gap of Si is 1.12 eV.", "support_span": "Energy gap of Si: 1.12 eV"}, False),
+        ]
+        return ptr_cases, _lib_prev, _adm_prev
+
+    ptr_skipped = False
+    try:
+        ptr_cases, _lib_prev, _adm_prev = _ptr_fixture()
+    except ImportError:
+        ptr_cases, ptr_skipped = [], True
+        _lib_prev, _adm_prev = pagestore.LIBRARY_OVERRIDE, pagestore.ADMISSION_OVERRIDE
 
     bad = 0
     print(f"{'verdict':9} case")
@@ -1255,6 +1266,8 @@ def selftest(tmp: Path, offline: bool = False) -> int:
     for label, row, want in prov_cases:
         run_case(label, row, want, online_stub)
     print(f"{'':9} -- v3: page pointers (pagestore.py; stub resolvers, hermetic PDF + fake OCR book)")
+    if ptr_skipped:
+        print(f"{'skipped':9} v3 page-pointer cases: PyMuPDF (fitz) is not installed — the PDF path is not calibrated here")
     try:
         for label, row, want in ptr_cases:
             run_case(label, row, want, True)
@@ -1363,6 +1376,34 @@ def selftest(tmp: Path, offline: bool = False) -> int:
         ("must-PASS: short-word limit, pinned — 'list' still reads as a unit after a digit",
          numbers_in("Table 2 to 4 list") == ["2", "4"]),
     ]
+    # CLI-level exit rules (review 2026-11-07): the value each defect changes is the printed count / exit code
+    import subprocess as _sp
+
+    def _cli(lines: list[str], run_json: bool = True) -> tuple[int, str]:
+        d = tmp / f"cli{len(list(tmp.glob('cli*')))}"
+        d.mkdir()
+        (d / "ledger.jsonl").write_text("".join(l + "\n" for l in lines), encoding="utf-8")
+        if run_json:
+            (d / "run.json").write_text(json.dumps({"run": {"created": "2026-09-01"}}), encoding="utf-8")
+        p = _sp.run([sys.executable, "-X", "utf8", "-I", str(Path(__file__).resolve()), str(d / "ledger.jsonl"), "--offline"],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace")
+        return p.returncode, p.stdout + p.stderr
+
+    _row = json.dumps({k: v for k, v in clean.items() if not k.startswith("_")}, ensure_ascii=False)
+    _rc_ok, _out_ok = _cli([_row])
+    _rc_bad, _out_bad = _cli([_row, "{not json"])
+    _rc_empty, _out_empty = _cli([])
+    _, _out_new = _cli([_row], run_json=False)
+    pure += [
+        ("must-FAIL: a whitespace-only span is found in no text (it would be 'in' every text)",
+         span_present("  \n\t", "any text at all") is False and span_present("any", "any text at all")),
+        ("must-FAIL: one unreadable ledger line makes the run exit 1 (the same ledger without it reports none)",
+         "unreadable ledger line" not in _out_ok and "1 unreadable ledger line" in _out_bad and _rc_bad == 1),
+        ("must-FAIL: an empty ledger exits 1 — nothing checked is not a pass",
+         _rc_empty == 1 and "ledger has no rows" in _out_empty and "ledger has no rows" not in _out_ok),
+        ("must-FAIL: a run dir without run.json is judged as a new run, not legacy",
+         "judged as a run created today" in _out_new and "judged as a run created today" not in _out_ok),
+    ]
     for label, good in pure:
         bad += 0 if good else 1
         print(f"{'ok' if good else 'BROKEN':9} {label}")
@@ -1408,7 +1449,8 @@ def selftest(tmp: Path, offline: bool = False) -> int:
     print("-" * 72)
     print(f"{len(all_cases) + n_pure} cases ({n_pass} must-pass / {n_fail} must-fail), {bad} broken — "
           f"{'gate is calibrated' if not bad else 'GATE IS NOT TRUSTWORTHY'}"
-          + (" [offline: stub resolvers]" if offline else " [live resolvers]"))
+          + (" [offline: stub resolvers]" if offline else " [live resolvers]")
+          + (" [page-pointer cases skipped: no PyMuPDF]" if ptr_skipped else ""))
     if not n_pass or not n_fail:
         print("ONE-SIDED: a gate that only ever rejects scores 100% here. "
               "Both sides must be populated for this result to mean anything.")
@@ -1449,9 +1491,15 @@ def main() -> int:
     base = path.resolve().parent
     manifest = load_manifest(base)
     created = args.run_created or run_created(base)
+    if not created:
+        # a run with no run.json (or no created date) is judged as a NEW run: a missing record must not buy
+        # the legacy WARN side (review 2026-11-07). Pass --run-created to judge a genuinely old run as legacy.
+        created = dt.date.today().isoformat()
+        print("run.json absent or undated — judged as a run created today (pass --run-created for an old run)")
     policy = access_policy.load() if access_policy else None
 
     rows = []
+    unreadable = 0
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = line.strip()
         if not line or line.startswith("//"):
@@ -1459,10 +1507,12 @@ def main() -> int:
         try:
             obj = json.loads(line)
         except Exception as exc:                            # noqa: BLE001
-            print(f"line {n}: not JSON ({exc}) — skipped")
+            print(f"line {n}: not JSON ({exc}) — FAIL (a row the gate cannot read is a claim it never checked)")
+            unreadable += 1
             continue
         if not isinstance(obj, dict):
-            print(f"line {n}: JSON but not an object ({type(obj).__name__}) — skipped (QA F-13)")
+            print(f"line {n}: JSON but not an object ({type(obj).__name__}) — FAIL (QA F-13)")
+            unreadable += 1
             continue
         rows.append(obj)
 
@@ -1486,6 +1536,12 @@ def main() -> int:
         print(f"\n{len(results)} claim(s): {fails} FAIL, {warns} WARN")
         if fails:
             print("A FAIL is not a style note: that claim may not ship as cited.")
+    if unreadable:
+        print(f"{unreadable} unreadable ledger line(s) — exit 1")
+        return 1
+    if not rows:
+        print("ledger has no rows — nothing was checked, which is not a pass (exit 1)")
+        return 1
     return 1 if any(c[1] == "FAIL" for r in results for c in r["checks"]) else 0
 
 

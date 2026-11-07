@@ -107,7 +107,7 @@ Included:       最終納入 n=____
 ## 多變量/降維（如適用）
 ## 多重比較校正：方法與校正後結果
 ## 效能指標表（依任務，附閾值依據）
-## Bootstrap CI（小樣本/分布未知）
+## Bootstrap CI（分布未知；極小樣本不靠它，見 method-selection.md [S1]）
 ```
 
 ## T6 報告與可重現性檢查清單（Reporting & Reproducibility Checklist）
