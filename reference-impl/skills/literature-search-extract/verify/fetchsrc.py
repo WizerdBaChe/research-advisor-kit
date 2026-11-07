@@ -191,6 +191,8 @@ def _http_get(url: str) -> tuple[int, bytes, str, str]:
     the caller re-judges that url's host (QA 2026-09-11 F-3) and refuses with nothing stored."""
     pol = access_policy.load()
     for _ in range(MAX_HOPS + 1):
+        if urllib.parse.urlsplit(url).scheme.lower() not in ("http", "https"):
+            return 0, b"", "", url                       # NOT opened: file:, data:, ftp: (first url or any hop)
         host = access_policy.host_of(url)
         contact = CONTACT_BY_HOST.get(host)
         ua = f"{_BASE_UA} mailto:{contact}" if contact else _BASE_UA
@@ -202,8 +204,6 @@ def _http_get(url: str) -> tuple[int, bytes, str, str]:
             loc = (exc.headers.get("Location") if exc.headers else None) if exc.code in REDIRECT_CODES else None
             if loc:
                 nxt = urllib.parse.urljoin(url, loc)
-                if urllib.parse.urlsplit(nxt).scheme.lower() not in ("http", "https"):
-                    return exc.code, b"", "", nxt        # NOT opened: a file:, data: or ftp: hop is never followed
                 allowed, _, _ = access_policy.decide(access_policy.host_of(nxt), "script", pol)
                 if not allowed:
                     return exc.code, b"", "", nxt        # NOT requested: the caller refuses it by host
@@ -702,6 +702,10 @@ def selftest() -> int:
                 ok("must-NOT-OPEN a redirect hop to a non-http scheme (file:, data:)",
                    opened == ["https://doi.example/c"] and fin == "file:///etc/hosts" and body == b"",
                    f"opened={opened} final={fin}")
+                opened.clear()
+                st, body, _, fin = _http_get("file:///etc/hosts")
+                ok("must-NOT-OPEN a first url with a non-http scheme", opened == [] and st == 0 and body == b"",
+                   f"opened={opened} status={st}")
             finally:
                 _open_once = prev_open
             # 7 excerpt: ledger span -> window; full text gone from the run, span present

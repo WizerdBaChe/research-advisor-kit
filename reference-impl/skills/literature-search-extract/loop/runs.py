@@ -209,7 +209,7 @@ def ledger_rows(run_dir: Path) -> list[dict]:
     if not p.exists():
         return []
     rows = []
-    for line in p.read_text(encoding="utf-8").splitlines():
+    for line in p.read_text(encoding="utf-8-sig").splitlines():  # a PowerShell BOM is not a bad row (as citecheck)
         line = line.strip()
         if line:
             try:

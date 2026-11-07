@@ -178,6 +178,13 @@ class TestCheck(TempHome):
         # the good fixture predates the fetch instrument: V9 must WARN there, never FAIL
         self.assertTrue(any(s == "WARN" and r == "V9" for s, r, _ in good), good)
 
+    def test_bom_ledger_reads_like_the_same_ledger_without_one(self):
+        d = self.place_good("20260903_bom-ledger")
+        p = d / "ledger.jsonl"
+        p.write_bytes(b"\xef\xbb\xbf" + p.read_bytes())    # what PowerShell's Out-File writes
+        v2 = [f for f in runs.check_run(d) if f[1] == "V2" and f[0] == "FAIL"]
+        self.assertEqual(v2, [], v2)
+
     def test_v9_promotes_to_fail_after_the_cutoff(self):
         d = self.place_good("20260903_post-cutoff")
         run = runs.load_run(d)

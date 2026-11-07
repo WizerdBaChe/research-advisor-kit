@@ -144,7 +144,8 @@ MUST_PASS = [
     ("Bash", {"command": 'git commit -m "a connector 401s and cat .env is the tempting next move"'}),
     ("Bash", {"command": "git check-ignore -v skills/x/connectors/.env"}),
     ("Bash", {"command": 'python -c "for k,p in c.execute(q): print(i.key, a.path)"'}),
-    # Observed false positives folded 2026-10-04, VERBATIM from the transcripts
+    # Observed false positives folded 2026-10-04, VERBATIM from the transcripts except that drive paths
+    # are replaced by synthetic X:\synth\work-root paths (the shapes under test are unchanged)
     # (FP-4 / FP-5: sonnet work-card executors on read-only inventory cards told
     # "never open credential-like files (<names>)"; FP-8: a report_fp row of
     # 2026-10-03). In each, the credential name is a PATTERN over names or
@@ -158,7 +159,7 @@ foreach($k in $roots.Keys){ $r=$roots[$k]; $f=Get-ChildItem -LiteralPath $r -Rec
  $cn=($f|Sort-Object CreationTimeUtc|Select-Object -First 1); $cx=($f|Sort-Object CreationTimeUtc -Descending|Select-Object -First 1)
  "{0}: n={1} mtime_min={2:yyyy-MM-ddTHH:mm:ssZ} mtime_max={3:yyyy-MM-ddTHH:mm:ssZ} ctime_min={4:yyyy-MM-ddTHH:mm:ssZ} ctime_max={5:yyyy-MM-ddTHH:mm:ssZ}" -f $k,$f.Count,$mn.LastWriteTimeUtc,$mx.LastWriteTimeUtc,$cn.CreationTimeUtc,$cx.CreationTimeUtc }
 "--- Series docs/ file count (names not read):"; (Get-ChildItem -LiteralPath 'X:\synth\work-root\ArchLens_Series\docs' -Recurse -File -Force | Measure-Object).Count"""}),
-    ("Bash", {"command": r"""cd "D:/有用資訊/AI_Skill" && find . -type f | grep -v -E 'node_modules|\.venv|__pycache__|\.git/' | wc -l; find . -type f | grep -i -E '\.env|token|secret|\.pem|\.key' ; find . -maxdepth 2 | head -150"""}),
+    ("Bash", {"command": r"""cd "X:/synth/work-root/AI_Skill" && find . -type f | grep -v -E 'node_modules|\.venv|__pycache__|\.git/' | wc -l; find . -type f | grep -i -E '\.env|token|secret|\.pem|\.key' ; find . -maxdepth 2 | head -150"""}),
     ("Bash", {"command": r"""cd ~/.claude; grep -rn -i "rotate\|輪替\|revoke" rules ops/*.md hooks/secret_file_guard.py tools/memory-pipeline/README.md tools/pii-membrane/README.md 2>/dev/null | head -8; echo ===; grep -rln -i "secret\|api.key\|token" tools/memory-pipeline/*.py 2>/dev/null | head; echo ===; grep -n -i "telegram\|sendMessage\|status" /x/synth/work-root/GitHubTrendWatch/CLAUDE.md | head -10; echo ===; grep -n "video-prompt-shelf" references/PROJECTS.md | cut -c1-500"""}),
     # Exclusion shapes named with that fold (constructed, not observed): a
     # negated name filter removes the credential from the set, so whatever reads

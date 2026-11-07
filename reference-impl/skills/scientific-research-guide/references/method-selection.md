@@ -21,7 +21,8 @@
 | ≥3 組之後：哪幾組不同 | 全配對 Tukey HSD（變異不等用 Games-Howell）；**各組對同一對照組** Dunnett | Dunn 檢定 + Holm 校正 |
 | 有順序的劑量／等級 | 趨勢對比（linear contrast）或劑量當連續變量迴歸 | Jonckheere-Terpstra 趨勢檢定 |
 | 重複量測／巢狀資料（同一樣本多次、技術重複） | 混合效應模型（mixed-effects model，樣本為隨機效應）；或先對技術重複取平均再比 | 同左（廣義混合模型）；Friedman（完整區組的重複量測） |
-| 兩分布是否相同 | — | Kolmogorov-Smirnov（參數由同一樣本估計時改用 Lilliefors）/ Anderson-Darling |
+| 兩樣本的分布是否相同 | — | 兩樣本 Kolmogorov-Smirnov / Anderson-Darling（k 樣本版） |
+| 單一樣本是否符合某分布 | — | 單樣本 Kolmogorov-Smirnov；檢驗常態且平均與變異由同一樣本估計時改用 Lilliefors（或 Shapiro-Wilk） |
 | 類別 × 類別關聯 | — | Chi-square 卡方（期望次數小時用 Fisher exact） |
 | 兩連續變量相關 | Pearson r | Spearman ρ / Kendall τ |
 
