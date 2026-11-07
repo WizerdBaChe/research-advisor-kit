@@ -13,7 +13,7 @@ research-advisor-kit/
 │  ├── BUILD-SPEC.md      規格（英文，給 agent 執行）
 │  ├── EVIDENCE.md        量測結果、來源紀錄、Enforcement map
 │  ├── DEVELOPER.md       本檔
-│  └── assets/            README 圖片與重產腳本 build_assets.py
+│  └── assets/            README 圖片與重產腳本 build_assets.py、flow.build.mjs（流程圖）
 ├── verify/
 │  ├── run_controls.py    雙側驗收 K1–K9
 │  ├── controls_run.txt   本機驗收紀錄
@@ -112,19 +112,36 @@ sequenceDiagram
 
 ## README 流程圖對照
 
-README 的「運作流程」是給第一次看的人的簡化圖（自動排版，位置不代表任何意義）。每個節點對應的原始段落：
+README 的「運作流程」圖（`docs/assets/flow.zh-TW.png`、英文版 `flow.en.png`）是給第一次看的人的讀者版：沒有工程原圖，節點與連線直接對應兩份 SKILL.md 的段落。圖由 `docs/assets/flow.build.mjs` 產生，下表就是 `node docs/assets/flow.build.mjs --mapping` 的輸出加上「省略了什麼」一欄；改了 SKILL.md 的段落行號，就重跑這個指令更新本表。
 
-| 圖上節點 | 對應 | 省略了什麼 |
+| 圖上節點 | 描繪的來源（`reference-impl/skills/…`） | 省略了什麼 |
 |---|---|---|
-| 研究顧問 先判斷你在哪個階段 | 研究顧問 SKILL.md Gate A（Step 0、0.5、1） | Gate B–E、research-state.md |
-| 下一步與理由 | Gate A 六段診斷 | 文件範本（Gate D） |
-| 文獻員 依需求搜尋 | 文獻員 SKILL.md Mode 1 / Mode 2、P1–P2 | 召回檢查、連接器路由 |
-| 這個出版商准不准程式讀取 | `literature-host-policy.json`、`access_policy.py`、`literature_host_guard.py` | 每主機與每次執行的次數上限 |
-| 交給你自己開 | P3 hand-to-user、`rules/literature-access.md` 第 5 步 | — |
-| 抽取內容 | P3 存取等級、P4 抽取 | 衝突並列、限制條件抽取 |
-| 引用查核 | P4.5、`verify/citecheck.py` | 書目比對、撤稿、取得路徑檢查 |
-| 照原文改寫主張或刪掉 | `references/verification-gate.md` 修復順序 | 其餘五種修復 |
-| 交付結果 | P5 結果契約 | AI 使用揭露、Zotero 收尾 |
+| 你的研究問題 | `scientific-research-guide/SKILL.md` L44（Gate A 在每一輪開頭觸發） | — |
+| 先判斷階段 | 同上 L44–110（Gate A：Step 0 領域路由、Tier 對應） | Gate B–E、`research-state.md` |
+| 下一步與理由 | 同上 L111 六段診斷；L252 一般回合的形狀 | 文件範本（Gate D） |
+| 依需求搜尋 | `literature-search-extract/SKILL.md` L85 P1、L95 P2 | P1 與 P2 合成一個節點；召回檢查、連接器路由 |
+| 准不准讀取 | 同上 L143–161 P3；`hooks/literature_host_guard.py` ＋ `literature-host-policy.json` | 每主機與每次執行的次數上限 |
+| 抽取內容 | 同上 L167 P4、L171 每筆附位置 | 衝突並列、限制條件抽取 |
+| 引用查核 | 同上 L188 P4.5；`verify/citecheck.py` | 數字在原句、書目比對、撤稿、取得路徑檢查（README 文字帶到） |
+| 交付結果 | 同上 L203 P5；L73 結果契約 | AI 使用揭露、Zotero 收尾 |
+| 交給你自己開 | 同上 L160–161 hand-to-user，記進 gaps | — |
+
+| 圖上連線 | 從 → 到 | 來源 |
+|---|---|---|
+| 1 | 你的研究問題 → 先判斷階段 | `scientific-research-guide/SKILL.md` L44 |
+| 不需文獻 | 先判斷階段 → 下一步與理由 | 同上 L252 |
+| 2 需要文獻 | 先判斷階段 → 依需求搜尋 | 同上 L134–135 Mode 2 請求契約 |
+| 只找文獻 | 你的研究問題 → 依需求搜尋 | 同上 L85–87 純找文獻的請求不跑 Tier 對應 |
+| 3 | 依需求搜尋 → 准不准讀取 | `literature-search-extract/SKILL.md` L143 P3 |
+| 4 准 | 准不准讀取 → 抽取內容 | 同上 L152–160 |
+| 禁止或驗證碼 | 准不准讀取 → 交給你自己開 | 同上 L160–161；hook 拒絕 |
+| 5 | 抽取內容 → 引用查核 | 同上 L188–195 先寫證據帳本再跑 citecheck |
+| 對不上（退回） | 引用查核 → 抽取內容 | `literature-search-extract/references/verification-gate.md` L182 修復順序（重讀位置、改寫或刪掉主張） |
+| 6 原句在原文 | 引用查核 → 交付結果 | `literature-search-extract/SKILL.md` L203 |
+| 列為缺口 | 交給你自己開 → 交付結果 | 同上 L161 |
+| 7 交回顧問 | 交付結果 → 下一步與理由 | `scientific-research-guide/SKILL.md` L135 接收結果契約 |
+
+圖的檢查（`flow.build.mjs` 內）：連線起訖都在節點邊上、沒有斜線、箭頭前至少 15 px 直線、線不穿過節點或群組標題、兩條線不交叉、平行線至少相隔 20 px、數字標籤不壓節點或群組框；`--selftest` 對六種故意畫壞的模型各應報錯、對正確模型應安靜。`build_assets.py --only flow` 另在瀏覽器裡量每段文字是否落在自己的節點內，並用一個縮窄節點的壞版本確認這項檢查會報錯。
 
 ## 模組對照
 
@@ -200,3 +217,12 @@ python -X utf8 docs/assets/build_assets.py
 ```
 
 腳本把 `reference-impl/` 複製到暫存資料夾，實際執行 `citecheck.py`、`literature_host_guard.py`、`profile-lint.py`，把輸出貼進 `docs/assets/src/` 的頁面再截圖。需要 `playwright` 與 Chromium（`python -m playwright install chromium`）。
+
+流程圖單獨重產（需要 Node 24 以上，不需 npm 安裝）：
+
+```text
+node docs/assets/flow.build.mjs --selftest
+python -X utf8 docs/assets/build_assets.py --only flow
+```
+
+第一行確認六種故意畫壞的模型都會被抓到；第二行產生 `flow.zh-TW.svg/png` 與 `flow.en.svg/png`，並做瀏覽器內的文字落點檢查。

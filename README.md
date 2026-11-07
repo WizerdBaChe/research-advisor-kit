@@ -119,26 +119,35 @@ python -X utf8 reference-impl/skills/scientific-research-guide/tools/profile-lin
 
 ## 運作流程
 
-<!-- Reader diagram (audience-fit A1, no engineering original): auto-layout mermaid, no position claim.
-     Node -> source mapping: docs/DEVELOPER.md «README 流程圖對照». -->
+<img src="docs/assets/flow.zh-TW.png" alt="運作流程圖：你的研究問題先交給研究顧問判斷階段；不需文獻時直接給出下一步與理由，需要文獻時派給文獻員。文獻員依需求搜尋，再判斷這個出版商准不准程式讀取：准就抽取內容並記下頁碼或表號，禁止或遇到驗證碼就交給你自己開、列進查不到的清單。抽取的內容經過引用查核，原句不在原文裡就退回重新抽取；原句在原文就交付結果（出處、缺口、可信度），交回顧問寫成下一步與理由。藍色主路徑標 1 到 7 號，灰色是旁支，紅色虛線是退回。" width="100%">
+
+<sub>圖由 <a href="docs/assets/flow.build.mjs"><code>docs/assets/flow.build.mjs</code></a> 產生：每個節點與連線都對應兩份 SKILL.md 的段落（對照表在 <a href="docs/DEVELOPER.md#readme-流程圖對照">開發者文件</a>），並附幾何自檢與故意畫壞的對照。引用查核除了原句在不在原文，也檢查主張裡的數字有沒有出現在原句、書目資料與撤稿狀態。</sub>
+
+<details><summary>文字版（mermaid）</summary>
 
 ```mermaid
 flowchart LR
-  Q[你的研究問題] --> A[研究顧問<br/>先判斷你在哪個階段]
-  A --> D[下一步與理由<br/>缺什麼 風險在哪]
-  A -->|需要文獻| L[文獻員<br/>依需求搜尋]
-  Q -->|只是找文獻| L
-  L --> H{這個出版商<br/>准不准程式讀取}
-  H -->|准| X[抽取內容<br/>記下頁碼或表號]
-  H -->|禁止或遇到驗證碼| U[交給你自己開<br/>列進查不到的清單]
-  X --> C{引用查核<br/>原句在原文裡嗎}
-  C -->|對不上| F[照原文改寫主張<br/>或刪掉列為缺口]
-  C -->|對得上| R[交付結果<br/>出處 缺口 可信度]
-  F --> R
-  U --> R
+  Q[你的研究問題] -->|1| A[先判斷階段]
+  A -->|不需文獻| D[下一步與理由]
+  A -->|2 需要文獻| L[依需求搜尋]
+  Q -->|只找文獻| L
+  L -->|3| H{准不准讀取}
+  H -->|4 准| X[抽取內容]
+  H -->|禁止或驗證碼| U[交給你自己開]
+  X -->|5| C{引用查核}
+  C -.->|對不上| X
+  C -->|6 原句在原文| R[交付結果]
+  U -->|列為缺口| R
+  R -->|7 交回顧問| D
 ```
 
-## 這版有什麼（v1.0.0）
+</details>
+
+## 這版有什麼（v1.0.1）
+
+- **v1.0.1 新增**：上方「運作流程」改成由腳本產生的讀者版流程圖，每個節點對應 SKILL.md 段落，附幾何自檢與故意畫壞的對照；原本的 mermaid 收進「文字版」。
+
+v1.0.0 起就有：
 
 - 兩個 skill 完整公開：方法文件、腳本、schema、測試；去識別化後的位元組副本（`reference-impl/`）。
 - 一起出貨的 hook：出版商存取政策（`literature_host_guard.py` ＋ 政策檔）與 API 金鑰保護（`secret_file_guard.py`），各附測試。

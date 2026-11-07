@@ -3,6 +3,21 @@
 All notable changes to this repository. Versions follow semantic versioning: minor = new capability,
 patch = fix. Format after Keep a Changelog.
 
+## [1.0.1] - 2026-11-07
+
+### Added
+
+- `docs/assets/flow.build.mjs`: the README flow diagram as a rendered reader figure (`flow.zh-TW.png`,
+  `flow.en.png` and their SVGs). Every node and line maps to a SKILL.md passage (`--mapping`, copied into
+  `docs/DEVELOPER.md`); model asserts for endpoints, diagonals, arrowhead run, edges through nodes or group
+  labels, crossings, parallel runs and chip placement, with six deliberately broken controls (`--selftest`).
+- `docs/assets/build_assets.py --only flow`: renders the two SVGs to PNG and checks in the browser that
+  every text sits inside its node, with a known-bad control.
+
+### Changed
+
+- README.md and README.en.md show the rendered flow; the mermaid flow moves into a collapsed text version.
+
 ## [1.0.0] - 2026-11-07
 
 First public release.
