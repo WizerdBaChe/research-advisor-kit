@@ -40,11 +40,12 @@ const G2_TOP = G1_BOTTOM + 52;
 const ROW2 = G2_TOP + PAD.top + DH / 2;
 const ROW3 = ROW2 + 170;
 const G2_BOTTOM = ROW3 + DH / 2 + PAD.bottom;
-const ROWS = { 1: ROW1, 2: ROW2, 3: ROW3 };
+const ROW4 = G2_BOTTOM + 110 + H / 2;   // below the librarian group: the papers-only exit
+const ROWS = { 1: ROW1, 2: ROW2, 3: ROW3, 4: ROW4 };
 const ARC = 26;                  // run between a check's vertex and its send-back line
 const MARK = 10;                 // arrowhead length; terminal run >= 1.5 * MARK (R10)
 const RET = 40;                  // the return line keeps this far outside the librarian group
-const LEGEND_Y = G2_BOTTOM + 40;
+const LEGEND_Y = ROW4 + H / 2 + 40;
 
 const C = {
   ink: '#1f2328', mute: '#57606a', bg: '#ffffff', groupFill: '#fafbfc', groupLine: '#d0d7de',
@@ -59,19 +60,21 @@ const TEXT = {  // one term per thing with README.md / README.en.md (R14 B-19)
     legend: ['主路徑：照編號讀', '旁支', '對不上時退回'],
     Q: ['你的研究問題', '卡在哪・下一步'], LOC: ['先判斷階段', '在研究的哪一步'], DIAG: ['下一步與理由', '缺什麼・風險在哪'],
     SRCH: ['依需求搜尋', '拆需求・找來源'], POL: ['准不准讀取'], EXT: ['抽取內容', '記下頁碼或表號'],
-    CC: ['引用查核'], RES: ['交付結果', '出處・缺口・可信度'], U: ['交給你自己開', '列進查不到的清單'],
+    CC: ['引用查核'], RES: ['交付結果', '出處・缺口・可信度'], U: ['交給你自己開', '記為缺口'],
+    OUT: ['書單直接給你', '不做階段診斷'],
     e2: '需要文獻', e4: '准', e6: '原句在原文', e7: '交回顧問',
-    sDirect: '不需文獻', sOnly: '只找文獻', sBan: '禁止或驗證碼', sGap: '列為缺口', b1: '對不上',
+    sDirect: '不需文獻', sOnly: '只找文獻', sBan: '禁止或驗證碼', sGap: '列為缺口', b1: '對不上：改寫或刪除',
   },
   en: {
     title: 'How it flows',
     g1: '① Research advisor (scientific-research-guide)', g2: '② Librarian (literature-search-extract)',
     legend: ['main path: read by number', 'side branch', 'sent back on no match'],
-    Q: ['Your question', 'stuck where · next'], LOC: ['Locate the stage', 'which research step'], DIAG: ['Next step', 'reasons · gaps · risks'],
+    Q: ['Your question', 'stuck where · next'], LOC: ['Locate the stage', 'which research step'], DIAG: ['Next step', 'reasons · missing · risks'],
     SRCH: ['Search to need', 'targets · sources'], POL: ['Access allowed?'], EXT: ['Extract', 'page · table · figure'],
-    CC: ['Citation check'], RES: ['Deliver results', 'sources · gaps · confidence'], U: ['Handed to you', 'listed as not retrieved'],
+    CC: ['Citation check'], RES: ['Deliver results', 'sources · gaps · confidence'], U: ['Handed to you', 'recorded as a gap'],
+    OUT: ['Booklist to you', 'no stage diagnosis'],
     e2: 'needs literature', e4: 'allowed', e6: 'span in source', e7: 'back to advisor',
-    sDirect: 'no literature', sOnly: 'papers only', sBan: 'banned / CAPTCHA', sGap: 'as a gap', b1: 'no match',
+    sDirect: 'no literature', sOnly: 'papers only', sBan: 'banned / CAPTCHA', sGap: 'as a gap', b1: 'no match: rewrite or drop',
   },
 };
 const T = TEXT[LANG];
@@ -83,11 +86,13 @@ const nodes = [
   { id: 'LOC', kind: 'step', col: 1, row: 1, src: `${SRG} L44-110 Gate A triage (Step 0 routing, tier mapping)` },
   { id: 'DIAG', kind: 'out', col: 2, row: 1, src: `${SRG} L111 six-part diagnosis; L252 usual turn shape` },
   { id: 'SRCH', kind: 'step', col: 1, row: 2, src: `${LSE} L85 P1 parse targets, L95 P2 search`, cut: 'P1 and P2 merged into one node' },
-  { id: 'POL', kind: 'check', col: 2, row: 2, src: `${LSE} L143-161 P3 access tagging; hooks/literature_host_guard.py + literature-host-policy.json` },
+  { id: 'POL', kind: 'check', col: 2, row: 2, src: `${LSE} L114-117 host access policy before any fetch, L143-161 P3 access tagging; hooks/literature_host_guard.py + literature-host-policy.json`,
+    cut: 'drawn as either/or: an allowed part may be extracted while the named document still goes to the user' },
   { id: 'EXT', kind: 'step', col: 3, row: 2, src: `${LSE} L167 P4 extraction, L171 locator with every item` },
   { id: 'CC', kind: 'check', col: 4, row: 2, src: `${LSE} L188 P4.5 verification gate; verify/citecheck.py`, cut: 'number-in-span and metadata checks -> README sentence' },
   { id: 'RES', kind: 'out', col: 4, row: 3, src: `${LSE} L203 P5 synthesis; L73 result contract` },
-  { id: 'U', kind: 'ext', col: 2, row: 3, w: CAP, src: `${LSE} L160-161 hand-to-user, recorded in gaps` },
+  { id: 'U', kind: 'ext', col: 2, row: 3, w: CAP, src: `${LSE} L114-117 refused or challenged host handed to the user; L160-161 recorded in gaps` },
+  { id: 'OUT', kind: 'ext', col: 4, row: 4, w: CAP, src: `${SRG} L83-91 Step 0.5: a pure retrieval request gets no tier mapping or six-part diagnosis` },
 ];
 const groups = [
   // at: where the group label sits (top-left or bottom-left); the step-2 line enters G2 from the top
@@ -108,21 +113,23 @@ function edgesOf(N, G2R) {
   const XR = G2R + RET;
   return [
     { id: 'e1', kind: 'main', step: 1, from: 'Q', to: 'LOC', pts: [[n('Q').r, ROW1], [n('LOC').l, ROW1]], src: `${SRG} L44` },
-    { id: 's1', kind: 'side', text: T.sDirect, from: 'LOC', to: 'DIAG', pts: [[n('LOC').r, ROW1], [n('DIAG').l, ROW1]], src: `${SRG} L252 Gate A -> six-part diagnosis` },
+    { id: 's1', kind: 'side', text: T.sDirect, from: 'LOC', to: 'DIAG', pts: [[n('LOC').r, ROW1], [n('DIAG').l, ROW1]], src: `${SRG} L252 Gate A -> six-part diagnosis; the label is inferred from L132-138 (only substantive literature work is delegated)` },
     { id: 'e2', kind: 'main', step: 2, text: T.e2, from: 'LOC', to: 'SRCH', pts: [[n('LOC').cx, n('LOC').b], [n('SRCH').cx, n('SRCH').t]], src: `${SRG} L134-135 Mode 2 request contract` },
     { id: 's2', kind: 'side', text: T.sOnly, from: 'Q', to: 'SRCH',
-      pts: [[n('Q').cx, n('Q').b], [n('Q').cx, ROW2], [n('SRCH').l, ROW2]], src: `${SRG} L85-87 pure retrieval request: no tier mapping` },
+      pts: [[n('Q').cx, n('Q').b], [n('Q').cx, ROW2], [n('SRCH').l, ROW2]], src: `${LSE} L41-48 Mode 1 direct request; ${SRG} L83-87 a retrieval-only turn is handed straight to the librarian` },
     { id: 'e3', kind: 'main', step: 3, from: 'SRCH', to: 'POL', pts: [[n('SRCH').r, ROW2], [n('POL').l, ROW2]], src: `${LSE} L143 P3` },
     { id: 'e4', kind: 'main', step: 4, text: T.e4, from: 'POL', to: 'EXT', pts: [[n('POL').r, ROW2], [n('EXT').l, ROW2]], src: `${LSE} L152-160` },
-    { id: 's3', kind: 'side', text: T.sBan, from: 'POL', to: 'U', pts: [[n('POL').cx, n('POL').b], [n('U').cx, n('U').t]], src: `${LSE} L160-161; hook deny` },
+    { id: 's3', kind: 'side', text: T.sBan, from: 'POL', to: 'U', pts: [[n('POL').cx, n('POL').b], [n('U').cx, n('U').t]], src: `${LSE} L114-117 refused or challenged host; hook deny` },
     { id: 'e5', kind: 'main', step: 5, from: 'EXT', to: 'CC', pts: [[n('EXT').r, ROW2], [n('CC').l, ROW2]], src: `${LSE} L188-195 ledger then citecheck` },
     { id: 'b1', kind: 'back', text: T.b1, from: 'CC', to: 'EXT',
       pts: [[n('CC').cx, n('CC').t], [n('CC').cx, n('CC').t - ARC], [n('EXT').cx, n('CC').t - ARC], [n('EXT').cx, n('EXT').t]],
-      src: 'literature-search-extract/references/verification-gate.md L182 repair order (re-read the locator, change or drop the claim)' },
+      src: 'literature-search-extract/references/verification-gate.md L182-198 repair order (rewrite the claim to the stored text, or delete it and record a gap)' },
     { id: 'e6', kind: 'main', step: 6, text: T.e6, from: 'CC', to: 'RES', pts: [[n('CC').cx, n('CC').b], [n('RES').cx, n('RES').t]], src: `${LSE} L203 P5 after the gate` },
     { id: 's4', kind: 'side', text: T.sGap, from: 'U', to: 'RES', pts: [[n('U').r, ROW3], [n('RES').l, ROW3]], src: `${LSE} L161 gaps: not retrieved, hand-to-user` },
     { id: 'e7', kind: 'main', step: 7, text: T.e7, from: 'RES', to: 'DIAG',
       pts: [[n('RES').r, ROW3], [XR, ROW3], [XR, ROW1], [n('DIAG').r, ROW1]], src: `${SRG} L135 consume its result contract` },
+    { id: 's5', kind: 'side', text: T.sOnly, from: 'RES', to: 'OUT', pts: [[n('RES').cx, n('RES').b], [n('OUT').cx, n('OUT').t]],
+      src: `${SRG} L83-91 answering a booklist request with a stage diagnosis is over-triggering` },
   ];
 }
 
@@ -207,11 +214,12 @@ function asserts(N, E, G) {
       const [p1, p2] = bothV ? [[a[1], b[1]], [c[1], d[1]]] : [[a[0], b[0]], [c[0], d[0]]];
       const overlap = Math.min(Math.max(...p1), Math.max(...p2)) - Math.max(Math.min(...p1), Math.min(...p2));
       if (overlap > 0 && gap > 0 && gap < 20) fail.push(`${A.id}/${B.id}: parallel ${gap}px apart (R10)`);
+      if (overlap > 0 && gap === 0) fail.push(`${A.id}/${B.id}: drawn on top of each other for ${overlap}px (R10)`);
     }
   }
   // spacing budget: neighbours on one row at least one standard node width apart (R14 B-22)
   for (const a of nodesL) for (const b of nodesL) {
-    if (a.id >= b.id || a.row !== b.row || Math.abs(a.col - b.col) !== 1) continue;
+    if (a.id >= b.id || a.row !== b.row || Math.abs(a.col - b.col) > 1) continue;  // fractional columns count too
     const gap = Math.max(a.l, b.l) - Math.min(a.r, b.r);
     if (gap < W) fail.push(`${a.id}/${b.id}: gap ${gap} < ${W} (R14 B-22)`);
   }
@@ -314,13 +322,16 @@ if (arg === '--mapping') {
   console.log('\n| 線 | 從 → 到 | 來源 |\n|---|---|---|');
   for (const e of E) console.log(`| ${e.id}${e.step ? ` (${e.step})` : ''}${e.text ? ` ${e.text}` : ''} | ${N[e.from].name} → ${N[e.to].name} | ${e.src} |`);
 } else if (arg === '--selftest') {
-  // known-bad controls: each must produce a FAIL naming its class; the known-good model must be quiet
+  // known-bad controls: each must produce a FAIL naming ITS class (one narrow pattern per control, so a
+  // control cannot pass on another check's FAIL); the known-good model must be quiet
   const controls = [
-    ['near-coincident neighbour (gap < W)', { node: (n) => (n.id === 'EXT' ? { ...n, col: 2.6 } : n) }, new RegExp(`gap .* < ${W}|runs through|chip`)],
-    ['squeezed arrowhead', { edges: (E) => E.map((e) => (e.id === 'b1' ? { ...e, pts: e.pts.map((p, i) => (i === 3 ? [p[0], e.pts[2][1] + 8] : p)) } : e)) }, /terminal run|tip not on/],
+    ['near-coincident neighbour (gap < W)', { node: (n) => (n.id === 'EXT' ? { ...n, col: 2.6 } : n) }, new RegExp(`^(POL/EXT|EXT/POL): gap .* < ${W}`)],
+    // the tip stays on EXT's border; only the last run shrinks to 8 px
+    ['squeezed arrowhead', { edges: (E, N) => E.map((e) => (e.id === 'b1' ? { ...e, pts: e.pts.map((p, i) => (i === 1 || i === 2 ? [p[0], N.EXT.t - 8] : p)) } : e)) }, /^b1: terminal run 8 /],
     ['edge through a node', { edges: (E, N) => E.map((e) => (e.id === 'e3' ? { ...e, to: 'EXT', pts: [[N.SRCH.r, ROW2], [N.EXT.l, ROW2]] } : e)) }, /runs through POL/],
     ['crossing edges', { edges: (E, N) => E.map((e) => (e.id === 'e5' ? { ...e, to: 'RES', pts: [[N.EXT.cx, N.EXT.b], [N.EXT.cx, ROW3 + 50], [N.RES.cx, ROW3 + 50], [N.RES.cx, N.RES.b]] } : e)) }, /e5\/s4: cross at|s4\/e5: cross at/],
     ['group label in the path of the step-2 line', { group: (g) => (g.id === 'G2' ? { ...g, at: 'top' } : g) }, /e2: runs through G2's label/],
+    ['two lines drawn on top of each other', { edges: (E) => [...E, { ...E.find((e) => e.id === 'e3'), id: 'x3', kind: 'side', step: undefined, text: undefined }] }, /^e3\/x3: drawn on top/],
     ['return line hugging the group border', { edges: (E) => E.map((e) => (e.id === 'e7' ? { ...e, pts: e.pts.map((p, i) => (i === 1 || i === 2 ? [p[0] - RET + 8, p[1]] : p)) } : e)) }, /from G2's border/],
   ];
   let bad = 0;

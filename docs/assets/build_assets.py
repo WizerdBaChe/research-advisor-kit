@@ -1,6 +1,10 @@
 """Regenerate every README image from the shipped tools' real output (no hand-made picture).
 
-Usage (from the repo root):  python -X utf8 docs/assets/build_assets.py
+Usage (from the repo root):  python -X utf8 docs/assets/build_assets.py [--only flow]
+
+--only flow renders just the README flow diagram: runs `node docs/assets/flow.build.mjs --selftest` for both
+languages, builds flow.zh-TW.svg and flow.en.svg, checks in the browser that every text sits inside its node
+(with a known-bad copy that must fail), and writes flow.zh-TW.png and flow.en.png. The full run does this first.
 
 What it does: copies reference-impl/ into a temp dir, RUNS the shipped tools there (citecheck, the host-access
 hook, profile-lint; same drive as controls K5, K6, K9 of verify/run_controls.py), pastes their stdout (temp path
@@ -8,8 +12,9 @@ scrubbed to <scratch>) into the pages under docs/assets/src/, and screenshots th
 Offline: nothing touches the network.
 
 Outputs (docs/assets/): hero.png, panel-citecheck.png, panel-hostguard.png, panel-lint.png (all 960 px wide;
-the height follows the content and is printed).
-Needs: Python 3.11+, playwright + chromium (python -m playwright install chromium). The pages use local fonts
+the height follows the content and is printed), flow.zh-TW.png and flow.en.png (the SVG's own size, @2x).
+Needs: Python 3.11+, playwright + chromium (python -m playwright install chromium), and Node.js on PATH for the
+flow diagram (standard library only; tested with Node.js 24). The pages use local fonts
 only; without a CJK serif font installed the type differs, the content does not.
 """
 from __future__ import annotations
@@ -60,10 +65,12 @@ FIT_JS = """() => {
 def build_flow() -> int:
     """Render flow.<lang>.svg (from flow.build.mjs) to PNG @2x; the in-browser text-fit check must be quiet on the
     real SVG and must fire on a known-bad copy whose one node is shrunk to 40 px wide."""
-    st = subprocess.run(["node", str(ASSETS / "flow.build.mjs"), "--selftest"], capture_output=True, text=True, encoding="utf-8")
-    print(st.stdout.strip())
-    if st.returncode:
-        sys.exit("flow.build.mjs --selftest failed")
+    for lang in ("zh-TW", "en"):  # each language has its own geometry, so each runs its own controls
+        st = subprocess.run(["node", str(ASSETS / "flow.build.mjs"), "--selftest", "--lang", lang],
+                            capture_output=True, text=True, encoding="utf-8")
+        print(f"selftest {lang}:\n{st.stdout.strip()}")
+        if st.returncode:
+            sys.exit(f"flow.build.mjs --selftest --lang {lang} failed")
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(device_scale_factor=2)
@@ -94,7 +101,10 @@ def build_flow() -> int:
 
 
 def main() -> int:
-    if "--only" in sys.argv and sys.argv[sys.argv.index("--only") + 1] == "flow":
+    if "--only" in sys.argv:
+        what = sys.argv[sys.argv.index("--only") + 1:][:1]
+        if what != ["flow"]:
+            sys.exit("usage: build_assets.py [--only flow]")
         return build_flow()
     build_flow()
     work = Path(tempfile.mkdtemp(prefix="rak-assets-"))
