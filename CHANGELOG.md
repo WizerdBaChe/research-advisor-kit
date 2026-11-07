@@ -11,12 +11,17 @@ Fixes found by four outside agents' reviews of v1.0.1 (one ran the controls on m
 
 - `verify/citecheck.py`: a whitespace-only `support_span` was "found" in every text; unreadable ledger
   lines and an empty ledger exited 0; a run folder without `run.json` was judged as a legacy run (WARN
-  instead of FAIL on provenance). Each now fails; four selftest cases cover them (105 cases, 53/52).
+  instead of FAIL on provenance). Each now fails; four selftest cases cover them.
 - `verify/citecheck.py --selftest` no longer needs PyMuPDF: without it the 20 page-pointer cases are
   skipped and the tally line says so (before, K1k crashed on `import fitz`).
+- `verify/citecheck.py --json` keeps stdout pure JSON (diagnostics go to stderr), so `--json > citecheck.json`
+  parses; a ledger with a UTF-8 BOM (PowerShell) no longer makes row 1 unreadable. Selftest: 107 cases, 53/54.
+- `verify/fetchsrc.py` never opens a redirect hop whose scheme is not http or https (`file:`, `data:`).
+- Python 3.12 or newer is stated (only 3.12.7 was run); three f-strings that 3.11 cannot parse are rewritten.
 - `loop/runs.py register` refuses a run whose `citecheck.json` carries a FAIL (before, only the later
   `check` V8 reported it, after the run was already marked delivered).
-- `verify/fetchsrc.py` follows redirects itself and judges every hop's host before sending it: a DOI
+- `verify/fetchsrc.py` follows redirects itself and checks every hop's scheme and banned hosts before sending it (per-run caps still
+  count only the final host): a DOI
   resolver that redirects to a banned publisher no longer gets that request sent.
 - `connectors/access_policy.py --selftest` restores `LSE_HOST_POLICY` instead of dropping it.
 - `verify/run_controls.py` points `CLAUDE_CONFIG_DIR` at an empty scratch folder and `LSE_HOST_POLICY` at
@@ -25,7 +30,7 @@ Fixes found by four outside agents' reviews of v1.0.1 (one ran the controls on m
 - Advisor statistics (`method-selection.md`, `tier-framework.md` §5.6): bootstrap is no longer the
   small-sample default (Hesterberg 2015); Welch by default, post-hoc tests (Tukey, Dunnett, Dunn + Holm),
   trend tests and mixed models added; AUC-PR no longer called better than AUC-ROC under imbalance
-  (McDermott et al. 2024); sources listed in the file. Eval case 2's third assertion now requires a
+  (McDermott et al. 2024); Games-Howell after a Welch ANOVA; sources listed in the file. Eval case 2's third assertion now requires a
   design-fitted follow-up test.
 - `literature-search-extract` SKILL.md: P4.5 "narrows" failure mode #8 (it was "catches"); its
   description no longer routes to an unshipped dispatch file (declared edit E6). `verification-gate.md`

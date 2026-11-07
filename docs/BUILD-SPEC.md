@@ -119,7 +119,7 @@ Run `python -X utf8 verify/run_controls.py <new-scratch-dir>` from the repo root
 `reference-impl/` to the scratch folder, sets `HK_HOST_TOML=verify/host.toml`, `LSE_RUN_HOME`, `LSE_INBOX`,
 `LSE_BIB_HOME` and `CLAUDE_TELEMETRY_DIR` inside it, clears `LSE_ARXIV_CONTACT`, mutates the copy and
 deletes it. No control touches the network. A control that reports `MISMATCH` makes the exit code 1.
-Machine tolerance: Python 3.11 or newer (tomllib), pytest, and the packages in section 8 (`idutils`,
+Machine tolerance: Python 3.12 or newer (tested on 3.12.7; 3.11 not tested), pytest, and the packages in section 8 (`idutils`,
 `jsonschema`) must be importable.
 
 | id | what | must pass (expected value) | must fail (expected value) |
@@ -134,7 +134,7 @@ Machine tolerance: Python 3.11 or newer (tomllib), pytest, and the packages in s
 | K1h | `loop/runs.py --selftest` | exit 0, output contains "calibrated" | (inside) |
 | K1i | `verify/fetchsrc.py --selftest` | exit 0, "0 broken - calibrated" | refused host, challenge, per-host cap (inside, stub transport) |
 | K1j | `verify/staleclaim.py --selftest` | exit 0, "8 cases (5 must-pass / 3 must-fail), 0 broken" | the 3 must-fail cases (inside) |
-| K1k | `verify/citecheck.py --selftest --offline` | exit 0, "105 cases (53 must-pass / 52 must-fail), 0 broken" (without PyMuPDF: 85 cases and "[page-pointer cases skipped: no PyMuPDF]") | the 52 must-fail cases (inside) |
+| K1k | `verify/citecheck.py --selftest --offline` | exit 0, "107 cases (53 must-pass / 54 must-fail), 0 broken" (without PyMuPDF: 87 cases and "[page-pointer cases skipped: no PyMuPDF]") | the 54 must-fail cases (inside) |
 | K2 | `pytest loop/tests` | exit 0, "53 passed" | (assertions inside, incl. register refusing a FAIL citecheck.json) |
 | K3 | `hooks/tests/test_literature_host_guard.py` | exit 0 and "ALL TESTS PASSED" | the D-* deny cases (inside) |
 | K4 | `tools/secret-guard-test/test_secret_file_guard.py` | exit 0 and "failures: 0"; must-deny 50, must-pass 53 | the 50 must-deny shapes; 3 undetermined and 3 unclassifiable-shape (fail-open) are reported, not counted |
@@ -180,7 +180,7 @@ right one) is a human check; the controls prove the gates, not the judgement.
   | `HK_HOST_TOML` | location of `host.toml` (tests, or a config home without `adapt/`) |
   | `CLAUDE_TELEMETRY_DIR` | redirects hook logs and deny receipts (default `<config home>/telemetry`) |
 
-- **Python packages.** Python 3.11 or newer. Required by the controls and the run store: `pytest`,
+- **Python packages.** Python 3.12 or newer. Required by the controls and the run store: `pytest`,
   `idutils==1.7.0` (`loop/idkey.py` refuses to guess identifiers without it), `jsonschema` (`loop/runs.py`
   validates run records; without it validation reports an error instead of running). Optional: `pymupdf`
   (PDF text in normal use; no control needs it; AGPL, see `THIRD_PARTY_NOTICES.md`).

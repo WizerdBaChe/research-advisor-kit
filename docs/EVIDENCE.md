@@ -8,8 +8,8 @@
 環境：Windows 11、Python 3.12.7、pytest 9.1.1、PyMuPDF 1.26.7、`idutils` 1.7.0 與 `jsonschema` 4.26.0（K1e、K1h、K2 會用到；`verify/requirements.txt`）。
 以上皆為 `verify/controls_run.txt` 環境行印出的版本；授權見 `THIRD_PARTY_NOTICES.md`。
 
-**PyMuPDF 是選用**：裝了，K1k 會多跑 20 個頁指標案例（一份 3 頁合成 PDF 加一本假的 OCR 書，驗頁指標與雜湊），共 105 例；
-沒裝，K1k 跑 85 例，結尾會寫「page-pointer cases skipped: no PyMuPDF」——略過不算通過。v1.0.1 以前沒裝 PyMuPDF 時 K1k 直接報錯（外部回饋在 macOS 上量到，2026-11-07）。
+**PyMuPDF 是選用**：裝了，K1k 會多跑 20 個頁指標案例（一份 3 頁合成 PDF 加一本假的 OCR 書，驗頁指標與雜湊），共 107 例；
+沒裝，K1k 跑 87 例，結尾會寫「page-pointer cases skipped: no PyMuPDF」——略過不算通過。v1.0.1 以前沒裝 PyMuPDF 時 K1k 直接報錯（外部回饋在 macOS 上量到，2026-11-07）。
 
 **控制項不讀已安裝的 `~/.claude`**：`run_controls.py` 把 `CLAUDE_CONFIG_DIR` 指到暫存區裡的空資料夾、`LSE_HOST_POLICY` 指到 repo 內的政策檔。
 v1.0.1 以前 K1a、K6 會去讀機器上已安裝的政策檔，所以在「沒裝過的新機器」上是 17/19（同一則回饋量到；本機用空的假家目錄重現）。
@@ -29,11 +29,11 @@ v1.0.2 的紀錄另以空的假家目錄重跑一次，結果相同（19/19）�
 | K1h | `runs.py --selftest`：calibrated | 內含 |
 | K1i | `fetchsrc.py --selftest`：0 broken，calibrated | 內含（被拒主機、挑戰頁、每主機上限，皆為 stub 傳輸） |
 | K1j | `staleclaim.py --selftest`：8 cases（5 must-pass / 3 must-fail），0 broken | 內含 |
-| K1k | `citecheck.py --selftest --offline`：105 cases（53 must-pass / 52 must-fail），0 broken | 內含（v1.0.2 新增 4 例：全空白 span、壞掉的帳本列、空帳本、缺 run.json；各在舊版會失敗） |
+| K1k | `citecheck.py --selftest --offline`：107 cases（53 must-pass / 54 must-fail），0 broken | 內含（v1.0.2 新增 6 例：全空白 span、壞掉的帳本列、空帳本、缺 run.json、`--json` 輸出是純 JSON、帶 BOM 的帳本；各在舊版會失敗） |
 | K2 | `loop/tests` pytest：53 passed | 內含（v1.0.2 新增：citecheck.json 有 FAIL 時 register 必須拒絕） |
 | K3 | `test_literature_host_guard.py`：ALL TESTS PASSED | 內含（D-* 拒絕案例） |
 | K4 | `test_secret_file_guard.py`：must-deny 50、must-pass 53，failures 0（另有 3 個 undetermined、3 個 unclassifiable shape 走 fail-open，皆不計入） | 內含 |
-| K5 | citecheck 支撐檢查：原 span **OK** | span 的 22 um 與主張的 22 ± 都改成 48：**FAIL** |
+| K5 | citecheck 支撐檢查：原 span **OK** | span 的 22 um 與主張的「= 22 μm」都改成 48：**FAIL** |
 | K6 | hook 收到 arXiv 的 WebFetch：**allow (silent)** | 收到 IEEE Xplore 文件頁的 WebFetch：**deny** |
 | K7 | `profile-lint.py` 對出貨版：(0 FAIL, 0 WARN) | `routing-collision` 夾具：(2, 6)；`frontmatter-drift` 夾具：(2, 0) |
 | K8 | `eval-impact.py`：改 `method-selection.md` 要重跑 **3** 個案例（2、3、5） | 改 `deliverables.md`：**0** 個 |
@@ -76,20 +76,20 @@ K5 與 K1k 都用 `--offline`：識別碼解析（Crossref / Semantic Scholar）
 | 支撐 span 必須逐字出現在取回的文字（P4.5） | 程式強制（FAIL） | `citecheck.py:617`（沒有 span）、`:642`（頁指標）、`:673`（文字檔） |
 | 主張裡的數字必須在 span 裡 | 程式強制：不在 span 也不在全文 = FAIL；只在全文別處 = WARN | `citecheck.py:696`（FAIL）、`:700`（WARN） |
 | 空白或只有空白字元的 span 不算「在原文裡」 | 程式強制（FAIL；v1.0.2 前全空白 span 會被判 OK） | `citecheck.py:178` |
-| 帳本完整：讀不懂的列、空帳本都不算通過 | 程式強制（exit 1；v1.0.2 前略過並 exit 0） | `citecheck.py:1540`、`:1543` |
-| 沒有 `run.json` 的 run 當新 run 判，不享舊 run 的 WARN | 程式強制（v1.0.2 前缺 run.json 就當舊 run，provenance 只 WARN） | `citecheck.py:1498` |
+| 帳本完整：讀不懂的列、空帳本都不算通過 | 程式強制（exit 1；v1.0.2 前略過並 exit 0） | `citecheck.py:1556`、`:1559` |
+| 沒有 `run.json` 的 run 當新 run 判，不享舊 run 的 WARN | 程式強制（v1.0.2 前缺 run.json 就當舊 run，provenance 只 WARN） | `citecheck.py:1514` |
 | 引用查核有 FAIL 的 run 不得登記為已交付 | 程式強制（`runs.py register` 拒絕；v1.0.2 前只有事後的 `check` V8 報） | `loop/runs.py:512` |
 | 「span 真的支撐主張」 | 不宣稱（腳本只證明在場，不證明蘊含；見下方） | — |
 | 存取標籤誠實（`[full]/[partial]/[abstract]/[secondary]`，P3） | 部分程式強制：標籤須在列舉內、OCR 稀疏頁不得標 `[full]`、`[full]` 但文字過短 WARN、`hand_to_user` 不得搭配含文字的標籤 | `citecheck.py:526`、`:649`、`:678`、`:812` |
 | 「`[abstract]` 只能抽取摘要有的內容」 | 流程規則 | literature `SKILL.md`「P3」 |
 | 文字來源 provenance：文字不是 `fetchsrc.py` 產生，或取回後被改過 | 程式強制（FAIL；run 建於 2026-09-12 之前只 WARN） | `citecheck.py:759`、`:796`（sha256 與 manifest 不符） |
-| 主機存取政策：`agent_banned` / `institutional_only` 不給任何表面 | 程式強制（hook deny、fetchsrc 拒絕、citecheck FAIL） | `hooks/literature_host_guard.py:223`（judge）、`:232`、`:479`；`connectors/access_policy.py:146`；`verify/fetchsrc.py:315`；`citecheck.py:823` |
-| 轉址：每一跳在送出前先判主機（例：doi.org 轉到被禁的出版商，那一跳不會送出） | 程式強制（`fetchsrc.py` 自己跟轉址，最多 5 跳；v1.0.2 前由 urllib 自動跟，請求送出後才判主機、只丟棄內容） | `verify/fetchsrc.py:185`、`:206` |
+| 主機存取政策：`agent_banned` / `institutional_only` 不給任何表面 | 程式強制（hook deny、fetchsrc 拒絕、citecheck FAIL） | `hooks/literature_host_guard.py:223`（judge）、`:232`、`:479`；`connectors/access_policy.py:146`；`verify/fetchsrc.py:318`；`citecheck.py:823` |
+| 轉址：每一跳在送出前先判協定與禁用主機（例：doi.org 轉到被禁的出版商，那一跳不會送出；`file:`、`data:` 跳不會開） | 程式強制（`fetchsrc.py` 自己跟轉址，最多 5 跳；v1.0.2 前由 urllib 自動跟，請求送出後才判主機、只丟棄內容）。只判「禁用」：每 run 上限與未列名主機數量只算在最後落地的主機，中途主機不計數 | `verify/fetchsrc.py:186`、`:205`（協定）、`:209`（禁用主機） |
 | 瀏覽器表面不在 `agent_surfaces` 內就拒絕；未量測的訂閱出版商不給瀏覽器 | 程式強制（hook deny） | `literature_host_guard.py:227`（未量測出版商）、`:235`（表面不在清單） |
-| 挑戰頁交給使用者，不換 User-Agent / 瀏覽器 / profile 重試 | 部分程式強制：`fetchsrc.py` 遇挑戰標記只打一次、記入 manifest、印 `HAND-TO-USER:`、exit 3；agent 自己用別的工具重試，只有在該主機本來就被政策拒絕時才會被 hook 擋 | `verify/fetchsrc.py:75`、`:163`、`:297`、`:341` |
-| 每主機 / 每 run 上限（`max_per_run`、三個未列名主機上限） | 程式強制（`fetchsrc.py` 與 `access_policy.py` 拒絕；腳本呼叫共用同一計數） | `access_policy.py:155`、`:159`；`fetchsrc.py:315`、`:327` |
+| 挑戰頁交給使用者，不換 User-Agent / 瀏覽器 / profile 重試 | 部分程式強制：`fetchsrc.py` 遇挑戰標記只打一次、記入 manifest、印 `HAND-TO-USER:`、exit 3；agent 自己用別的工具重試，只有在該主機本來就被政策拒絕時才會被 hook 擋 | `verify/fetchsrc.py:75`、`:163`、`:300`、`:344` |
+| 每主機 / 每 run 上限（`max_per_run`、三個未列名主機上限） | 程式強制（`fetchsrc.py` 與 `access_policy.py` 拒絕；腳本呼叫共用同一計數） | `access_policy.py:155`、`:159`；`fetchsrc.py:318`、`:330` |
 | 每 session 上限（小上限的 landing 主機） | 程式強制（hook deny）；未列名主機的檢索腳本超過上限只發通知 | `literature_host_guard.py:240`、`:470`；通知 `:301` |
-| 授權版全文不留存、只留摘錄（copyright boundary） | 部分程式強制：非 OA 主機依政策 `retention` 存 scratch 並只導出 span 周圍視窗；未導出前 citecheck 拒絕 | `fetchsrc.py:356`、`:443`、`:503`；`citecheck.py:663` |
+| 授權版全文不留存、只留摘錄（copyright boundary） | 部分程式強制：非 OA 主機依政策 `retention` 存 scratch 並只導出 span 周圍視窗；未導出前 citecheck 拒絕 | `fetchsrc.py:359`、`:446`、`:506`；`citecheck.py:663` |
 | 「引文短、改寫為主、不重製整節」 | 流程規則 | literature `SKILL.md`「Copyright boundary」、`rules/literature-access.md` |
 | 撤稿檢查（P3、credibility-rubric §3） | 程式強制：被引作品有撤稿通知且未標「以撤稿引用」= FAIL，關注聲明 = WARN；需要網路 | `citecheck.py:575`–`:591` |
 | 召回檢查：「查無」之前要有 withheld 已知項目的對照（P2） | 流程規則（沒有腳本判斷「查無」是否經過召回檢查） | literature `SKILL.md`「Recall check」；`references/search-sources.md:539` |

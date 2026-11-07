@@ -104,7 +104,7 @@
 
 ### 不裝 agent，30 秒自己試一次引用查核
 
-需要 Python 3.11 以上，不需要 API 金鑰、不需要網路（`--offline`）。在 repo 根目錄：
+需要 Python 3.12 以上，不需要 API 金鑰、不需要網路（`--offline`）。在 repo 根目錄：
 
 ```text
 python -X utf8 reference-impl/skills/literature-search-extract/verify/citecheck.py reference-impl/skills/literature-search-extract/loop/tests/fixtures/good-run/ledger.jsonl --offline
@@ -159,7 +159,7 @@ flowchart LR
 ## 這版有什麼（v1.0.2）
 
 - **v1.0.2 修正（來自外部 agent 的審閱）**：全空白的引用原句、讀不懂的帳本列、空帳本、缺 `run.json` 的 run，以前會被放過，現在一律判失敗；
-  引用查核有 FAIL 的 run 不能再登記為已交付；`fetchsrc.py` 跟轉址時每一跳先判主機，DOI 轉到被禁的出版商時那一跳不會送出；
+  引用查核有 FAIL 的 run 不能再登記為已交付；`fetchsrc.py` 跟轉址時每一跳先判協定與禁用主機，DOI 轉到被禁的出版商時那一跳不會送出（每 run 上限只算最後落地的主機）；
   驗收不再讀你機器上已安裝的設定、沒有 PyMuPDF 也能跑；顧問的統計判斷表改正（小樣本不再優先 Bootstrap、預設 Welch、加入事後比較與混合模型）並附出處。
 - v1.0.1：「運作流程」改成由腳本產生的讀者版流程圖，每個節點對應 SKILL.md 段落。
 
@@ -189,7 +189,7 @@ v1.0.0 起就有：
 - **顧問的判斷大多是流程規則**：定位階段、六段診斷、不擅自動你的資料，是 agent 照 SKILL.md 做的，沒有程式強制；隨附的評測案例只有 5 題，評的是「規則有沒有接上」，不是「建議對不對」。
 - **沒有領域知識**：領域清單是空的，顧問只用通用框架回答；要有領域深度，得自己寫領域檔。
 - **不幫你繞過付費牆**：被政策禁止或遇到反爬蟲的來源，一律列為「沒取到、交給使用者」。政策檔的主機清單是某個時間點的實測，出版商條款會變。
-- **只在 Windows 11 + Python 3.12 實測**（需要 3.11 以上，套件見 `verify/requirements.txt`；不需要 API 金鑰）；macOS 上有外部讀者量到的三項失敗已修正，但修正後沒在 macOS 重跑。本機教科書庫與 Zotero 連接器要用你自己的資料，乾淨環境下教科書工具的自我測試只能回報「無法判定」。
+- **只在 Windows 11 + Python 3.12 實測**（需要 3.12 以上，套件見 `verify/requirements.txt`；不需要 API 金鑰）；macOS 上有外部讀者量到的三項失敗已修正，但修正後沒在 macOS 重跑。本機教科書庫與 Zotero 連接器要用你自己的資料，乾淨環境下教科書工具的自我測試只能回報「無法判定」。
 - **拒絕訊息有兩處原樣保留的瑕疵**：政策檔某一列（以及 `search-sources.md` 的同一段）的依據引文在原環境就被截斷（句中斷在 "through an entitled se"）；拒絕訊息指向的誤判回報工具 `tools/hook-deny-lint/report_fp.py` 沒有隨附。兩者不影響放行／拒絕的判定。
 - 更多限制與人工驗收清單：[`docs/DEVELOPER.md`](docs/DEVELOPER.md#限制)。
 

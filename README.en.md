@@ -104,7 +104,7 @@ Do not change any check's verdict and do not edit hooks/literature-host-policy.j
 
 ### Try the citation check yourself in 30 seconds, no agent
 
-Python 3.11 or newer; no API key and no network (`--offline`). From the repo root:
+Python 3.12 or newer; no API key and no network (`--offline`). From the repo root:
 
 ```text
 python -X utf8 reference-impl/skills/literature-search-extract/verify/citecheck.py reference-impl/skills/literature-search-extract/loop/tests/fixtures/good-run/ledger.jsonl --offline
@@ -159,7 +159,7 @@ flowchart LR
 ## What's in this version (v1.0.2)
 
 - **Fixed in v1.0.2 (from outside agents' reviews):** a blank quoted span, unreadable ledger lines, an empty ledger and a run without `run.json` used to pass and now fail;
-  a run whose citation check carries a FAIL can no longer be registered as delivered; `fetchsrc.py` judges every redirect hop before sending it, so a DOI that redirects to a banned publisher never gets that request sent;
+  a run whose citation check carries a FAIL can no longer be registered as delivered; `fetchsrc.py` checks every redirect hop's scheme and banned hosts before sending it, so a DOI that redirects to a banned publisher never gets that request sent (per-run caps count only the final host);
   the acceptance run no longer reads the settings installed on your machine and runs without PyMuPDF; the advisor's statistics tables are corrected (no bootstrap-first for small samples, Welch by default, post-hoc tests and mixed models added) and cite their sources.
 - v1.0.1: the "How it flows" section became a script-rendered reader diagram; every node maps to a SKILL.md passage.
 
@@ -189,7 +189,7 @@ Since v1.0.0:
 - **Most of the advisor's judgement is process rules:** locating the stage, the six-part diagnosis and leaving your data alone are done by the agent from SKILL.md, not enforced by code; the shipped eval set has only 5 cases, and it grades whether the rules are wired in, not whether the advice is right.
 - **No domain knowledge:** the domain list is empty and the advisor answers from the generic framework; domain depth means writing your own profile.
 - **No paywall workarounds:** a source the policy bans or an anti-bot page answers is always recorded as "not retrieved, handed to the user". The policy's host list was checked at one point in time; publisher terms change.
-- **Tested only on Windows 11 + Python 3.12** (3.11 or newer required, packages in `verify/requirements.txt`; no API key needed); three failures an outside reader measured on macOS are fixed but not re-run on macOS. The local textbook library and the Zotero connector need your own data, and in a clean environment the textbook tool's self-test can only report "undetermined".
+- **Tested only on Windows 11 + Python 3.12** (3.12 or newer required, packages in `verify/requirements.txt`; no API key needed); three failures an outside reader measured on macOS are fixed but not re-run on macOS. The local textbook library and the Zotero connector need your own data, and in a clean environment the textbook tool's self-test can only report "undetermined".
 - **Two flaws in the deny message are kept as shipped:** one policy row's quoted basis (and the same passage in `search-sources.md`) was already truncated at the origin (it breaks off at "through an entitled se"); the false-positive reporter the message points to, `tools/hook-deny-lint/report_fp.py`, is not shipped. Neither changes the allow/deny verdict.
 - More limits and the manual acceptance checklist: [`docs/DEVELOPER.md`](docs/DEVELOPER.md#限制) (Traditional Chinese).
 

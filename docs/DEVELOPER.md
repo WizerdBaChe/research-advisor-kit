@@ -159,7 +159,7 @@ README 的「運作流程」圖（`docs/assets/flow.zh-TW.png`、英文版 `flow
 
 ## 環境
 
-- 實測：Windows 11、Python 3.12.7、pytest 9.1.1、idutils 1.7.0、jsonschema 4.26.0。需要 Python 3.11 以上（`roots.py` 用 `tomllib`）；`idutils` 與 `jsonschema` 是驗收 K1e、K1h、K2 的必要套件。
+- 實測：Windows 11、Python 3.12.7、pytest 9.1.1、idutils 1.7.0、jsonschema 4.26.0。需要 Python 3.12 以上（只在 3.12.7 實測，3.11 沒測過）；`idutils` 與 `jsonschema` 是驗收 K1e、K1h、K2 的必要套件。
 - 必要套件：`pip install -r verify/requirements.txt`（pytest、idutils、jsonschema）。
 - 選用：PyMuPDF（讀 PDF 文字；沒裝時 K1k 略過 20 個頁指標案例並在結尾註明）、Zotero 本機資料庫、本機教科書庫。
 - 驗收不讀你已安裝的 `~/.claude`：`run_controls.py` 會把 `CLAUDE_CONFIG_DIR` 指到暫存區的空資料夾、`LSE_HOST_POLICY` 指到 repo 內的政策檔。

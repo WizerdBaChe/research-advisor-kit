@@ -63,8 +63,8 @@ python -X utf8 verify/run_controls.py <a-new-empty-dir>
 
 - `<a-new-empty-dir>` must not exist or be empty and must not overlap the repo: the script copies
   `reference-impl/` there, mutates the copy, and deletes it.
-- Needs Python 3.11 or newer (tomllib) and `pip install -r verify/requirements.txt` (`pytest`, `idutils`,
-  `jsonschema`). PyMuPDF is optional: without it K1k runs 85 cases instead of 105 and its last line says the
+- Needs Python 3.12 or newer (tested on 3.12.7) and `pip install -r verify/requirements.txt` (`pytest`, `idutils`,
+  `jsonschema`). PyMuPDF is optional: without it K1k runs 87 cases instead of 107 and its last line says the
   page-pointer (PDF) cases were skipped — report that to your user as "PDF path not checked here", not as a pass.
 - The controls never read an installed `~/.claude`: they point `CLAUDE_CONFIG_DIR` at an empty scratch folder and
   `LSE_HOST_POLICY` at the repo's policy file, so a machine with an older install gets the fresh-machine result.
