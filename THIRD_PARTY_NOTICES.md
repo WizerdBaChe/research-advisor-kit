@@ -56,6 +56,7 @@ content from those hosts is included in this repository.
 | Pillow 12.3 | `connectors/textbook_ocr.py` page images for OCR (optional tool) | MIT-CMU (HPND) |
 | pypdf | `verify/fetchsrc.py` fallback PDF text when PyMuPDF is absent (guarded import, optional) | BSD-3-Clause |
 | PyYAML | `loop/tests/test_runs.py` one test (guarded import, skipped without it) | MIT |
+| Node.js 24 (runtime, not a package) | `docs/assets/flow.build.mjs` only (the README flow diagram; standard library only, no npm install) | MIT (Node.js) |
 | Playwright + Chromium | `docs/assets/build_assets.py` only (regenerating the README images; not needed to use the kit) | Apache-2.0 (Playwright); Chromium BSD-3-Clause and others |
 
 Most call sites import PyMuPDF lazily inside functions (as `fitz`); the two textbook tools

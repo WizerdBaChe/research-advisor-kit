@@ -32,7 +32,71 @@ SRC = ASSETS / "src"
 WIDTH = 960
 
 
+FIT_JS = """() => {
+  const box = (e) => e.getBoundingClientRect(), bad = [];
+  for (const t of document.querySelectorAll('[data-name],[data-role]')) {
+    const id = t.dataset.name || t.dataset.role, n = document.querySelector(`[data-node="${id}"]`);
+    const a = box(t), b = box(n);
+    // a diamond narrows away from its centre line: the half-width left at the text's farthest edge
+    const dia = n.tagName === 'path', cx = (b.left + b.right) / 2, cy = (b.top + b.bottom) / 2;
+    const dy = Math.max(Math.abs(a.top - cy), Math.abs(a.bottom - cy));
+    const half = dia ? (b.width / 2) * (1 - dy / (b.height / 2)) : b.width / 2;
+    const l = cx - half, r = cx + half;
+    if (a.left < l + 4 || a.right > r - 4 || a.top < b.top || a.bottom > b.bottom) bad.push(`text of ${id} outside its node`);
+  }
+  for (const g of document.querySelectorAll('[data-chip]')) {
+    const r = box(g.querySelector('rect'));
+    for (const t of g.querySelectorAll('text')) { const a = box(t);
+      if (a.left < r.left || a.right > r.right + 0.5) bad.push(`chip ${g.dataset.chip} text overflows`); }
+  }
+  for (const g of document.querySelectorAll('[data-label]')) {
+    const a = box(g), r = box(document.querySelector(`[data-group="${g.dataset.label}"]`));
+    if (a.right > r.right - 8) bad.push(`group label ${g.dataset.label} overflows`);
+  }
+  return bad;
+}"""
+
+
+def build_flow() -> int:
+    """Render flow.<lang>.svg (from flow.build.mjs) to PNG @2x; the in-browser text-fit check must be quiet on the
+    real SVG and must fire on a known-bad copy whose one node is shrunk to 40 px wide."""
+    st = subprocess.run(["node", str(ASSETS / "flow.build.mjs"), "--selftest"], capture_output=True, text=True, encoding="utf-8")
+    print(st.stdout.strip())
+    if st.returncode:
+        sys.exit("flow.build.mjs --selftest failed")
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page(device_scale_factor=2)
+        for lang in ("zh-TW", "en"):
+            b = subprocess.run(["node", str(ASSETS / "flow.build.mjs"), "--lang", lang], capture_output=True, text=True, encoding="utf-8")
+            print(b.stdout.strip())
+            if b.returncode:
+                sys.exit(f"flow {lang}: model asserts failed")
+            svg = (ASSETS / f"flow.{lang}.svg").read_text(encoding="utf-8")
+            w, h = (int(float(x)) for x in re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg).groups())
+            page.set_viewport_size({"width": w, "height": h})
+            page.set_content(f"<html><body style='margin:0'>{svg}</body></html>")
+            bad = page.evaluate(FIT_JS)
+            shrunk = re.sub(r'(<rect data-node="LOC" x=")([\d.]+)(" y="[\d.]+" width=")([\d.]+)',
+                            lambda m: f"{m[1]}{float(m[2]) + float(m[4]) / 2 - 20}{m[3]}40", svg, count=1)
+            page.set_content(f"<html><body style='margin:0'>{shrunk}</body></html>")
+            ctl = page.evaluate(FIT_JS)
+            print(f"text-fit {lang}: real {len(bad)} problem(s); known-bad (LOC shrunk to 40 px) {len(ctl)} problem(s)"
+                  f" -> {'ok' if not bad and ctl else 'FAIL'}")
+            if bad or not ctl:
+                sys.exit(f"flow {lang}: text-fit {bad or 'control silent'}")
+            page.set_content(f"<html><body style='margin:0'>{svg}</body></html>")
+            out = ASSETS / f"flow.{lang}.png"
+            page.screenshot(path=str(out), clip={"x": 0, "y": 0, "width": w, "height": h})
+            print(f"wrote docs/assets/flow.{lang}.png ({w}x{h} css px, @2x)")
+        browser.close()
+    return 0
+
+
 def main() -> int:
+    if "--only" in sys.argv and sys.argv[sys.argv.index("--only") + 1] == "flow":
+        return build_flow()
+    build_flow()
     work = Path(tempfile.mkdtemp(prefix="rak-assets-"))
     try:
         slots = capture(work)

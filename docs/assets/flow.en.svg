@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1788 728" width="1788" height="728" role="img" aria-labelledby="t d" font-family="'Segoe UI','Microsoft JhengHei','Noto Sans TC',sans-serif">
+<title id="t">How it flows</title>
+<desc id="d">1. Your question → Locate the stage；2. Locate the stage → Search to need；3. Search to need → Access allowed?；4. Access allowed? → Extract；5. Extract → Citation check；6. Citation check → Deliver results；7. Deliver results → Next step</desc>
+<defs><marker id="m-main" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="10" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 4L0 8z" fill="#0969da"/></marker><marker id="m-side" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="10" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 4L0 8z" fill="#6e7781"/></marker><marker id="m-back" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="10" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 4L0 8z" fill="#cf222e"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect data-group="G1" x="388" y="32" width="588" height="184" rx="10" fill="#fafbfc" stroke="#d0d7de" stroke-width="1.25"/>
+<text data-label="G1" x="404" y="58" font-size="15" font-weight="600" fill="#57606a">① Research advisor (scientific-research-guide)</text>
+<rect data-group="G2" x="388" y="280" width="1320" height="366" rx="10" fill="#fafbfc" stroke="#d0d7de" stroke-width="1.25"/>
+<text data-label="G2" x="404" y="630" font-size="15" font-weight="600" fill="#57606a">② Librarian (literature-search-extract)</text>
+<path data-edge="e1" data-kind="main" d="M244 128L416 128" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<path data-edge="s1" data-kind="side" d="M588 128L776 128" fill="none" stroke="#6e7781" stroke-width="1.5" marker-end="url(#m-side)"/>
+<path data-edge="e2" data-kind="main" d="M502 160L502 356" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<path data-edge="s2" data-kind="side" d="M142 160L142 388L416 388" fill="none" stroke="#6e7781" stroke-width="1.5" marker-end="url(#m-side)"/>
+<path data-edge="e3" data-kind="main" d="M588 388L764 388" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<path data-edge="e4" data-kind="main" d="M960 388L1136 388" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<path data-edge="s3" data-kind="side" d="M862 432L862 526" fill="none" stroke="#6e7781" stroke-width="1.5" marker-end="url(#m-side)"/>
+<path data-edge="e5" data-kind="main" d="M1308 388L1484 388" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<path data-edge="b1" data-kind="back" d="M1582 344L1582 318L1222 318L1222 356" fill="none" stroke="#cf222e" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#m-back)"/>
+<path data-edge="e6" data-kind="main" d="M1582 432L1582 526" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<path data-edge="s4" data-kind="side" d="M964 558L1496 558" fill="none" stroke="#6e7781" stroke-width="1.5" marker-end="url(#m-side)"/>
+<path data-edge="e7" data-kind="main" d="M1668 558L1748 558L1748 128L948 128" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<rect data-node="Q" x="40" y="96" width="204" height="64" rx="32" fill="#eef1f4" stroke="#57606a" stroke-width="1.5"/>
+<text data-name="Q" x="142" y="124" text-anchor="middle" font-size="18" font-weight="600" fill="#1f2328">Your question</text>
+<text data-role="Q" x="142" y="147" text-anchor="middle" font-size="13" fill="#57606a">stuck where · next</text>
+<rect data-node="LOC" x="416" y="96" width="172" height="64" rx="8" fill="#ddeafb" stroke="#3b74c9" stroke-width="1.5"/>
+<text data-name="LOC" x="502" y="124" text-anchor="middle" font-size="18" font-weight="600" fill="#1f2328">Locate the stage</text>
+<text data-role="LOC" x="502" y="147" text-anchor="middle" font-size="13" fill="#57606a">which research step</text>
+<rect data-node="DIAG" x="776" y="96" width="172" height="64" rx="8" fill="#fcecc9" stroke="#c58a16" stroke-width="1.5"/>
+<text data-name="DIAG" x="862" y="124" text-anchor="middle" font-size="18" font-weight="600" fill="#1f2328">Next step</text>
+<text data-role="DIAG" x="862" y="147" text-anchor="middle" font-size="13" fill="#57606a">reasons · gaps · risks</text>
+<rect data-node="SRCH" x="416" y="356" width="172" height="64" rx="8" fill="#ddeafb" stroke="#3b74c9" stroke-width="1.5"/>
+<text data-name="SRCH" x="502" y="384" text-anchor="middle" font-size="18" font-weight="600" fill="#1f2328">Search to need</text>
+<text data-role="SRCH" x="502" y="407" text-anchor="middle" font-size="13" fill="#57606a">targets · sources</text>
+<path data-node="POL" d="M862 344L960 388L862 432L764 388z" fill="#fce4ee" stroke="#bf1f5a" stroke-width="1.5"/>
+<text data-name="POL" x="862" y="394" text-anchor="middle" font-size="17" font-weight="600" fill="#1f2328">Access allowed?</text>
+<rect data-node="EXT" x="1136" y="356" width="172" height="64" rx="8" fill="#ddeafb" stroke="#3b74c9" stroke-width="1.5"/>
+<text data-name="EXT" x="1222" y="384" text-anchor="middle" font-size="18" font-weight="600" fill="#1f2328">Extract</text>
+<text data-role="EXT" x="1222" y="407" text-anchor="middle" font-size="13" fill="#57606a">page · table · figure</text>
+<path data-node="CC" d="M1582 344L1680 388L1582 432L1484 388z" fill="#fce4ee" stroke="#bf1f5a" stroke-width="1.5"/>
+<text data-name="CC" x="1582" y="394" text-anchor="middle" font-size="17" font-weight="600" fill="#1f2328">Citation check</text>
+<rect data-node="RES" x="1496" y="526" width="172" height="64" rx="8" fill="#fcecc9" stroke="#c58a16" stroke-width="1.5"/>
+<text data-name="RES" x="1582" y="554" text-anchor="middle" font-size="18" font-weight="600" fill="#1f2328">Deliver results</text>
+<text data-role="RES" x="1582" y="577" text-anchor="middle" font-size="13" fill="#57606a">sources · gaps · confidence</text>
+<rect data-node="U" x="760" y="526" width="204" height="64" rx="32" fill="#eef1f4" stroke="#57606a" stroke-width="1.5"/>
+<text data-name="U" x="862" y="554" text-anchor="middle" font-size="18" font-weight="600" fill="#1f2328">Handed to you</text>
+<text data-role="U" x="862" y="577" text-anchor="middle" font-size="13" fill="#57606a">listed as not retrieved</text>
+<g data-chip="e1"><rect x="319" y="117" width="22" height="22" rx="11" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<circle cx="330" cy="128" r="11" fill="#0969da"/><text x="330" y="132.5" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">1</text>
+</g>
+<g data-chip="s1"><rect x="622.6" y="117" width="118.79999999999998" height="22" rx="11" fill="#ffffff" stroke="#6e7781" stroke-width="1"/><text x="682" y="133" text-anchor="middle" font-size="14" fill="#6e7781">no literature</text></g>
+<g data-chip="e2"><rect x="422.20000000000005" y="247" width="159.59999999999997" height="22" rx="11" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<circle cx="433.20000000000005" cy="258" r="11" fill="#0969da"/><text x="433.20000000000005" y="262.5" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">2</text>
+<text x="450.20000000000005" y="263" font-size="14" fill="#0969da">needs literature</text>
+</g>
+<g data-chip="s2"><rect x="227.2" y="377" width="103.6" height="22" rx="11" fill="#ffffff" stroke="#6e7781" stroke-width="1"/><text x="279" y="393" text-anchor="middle" font-size="14" fill="#6e7781">papers only</text></g>
+<g data-chip="e3"><rect x="665" y="377" width="22" height="22" rx="11" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<circle cx="676" cy="388" r="11" fill="#0969da"/><text x="676" y="392.5" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">3</text>
+</g>
+<g data-chip="e4"><rect x="1002.4" y="377" width="91.2" height="22" rx="11" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<circle cx="1013.4" cy="388" r="11" fill="#0969da"/><text x="1013.4" y="392.5" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">4</text>
+<text x="1030.4" y="393" font-size="14" fill="#0969da">allowed</text>
+</g>
+<g data-chip="s3"><rect x="791.2" y="468" width="141.59999999999997" height="22" rx="11" fill="#ffffff" stroke="#6e7781" stroke-width="1"/><text x="862" y="484" text-anchor="middle" font-size="14" fill="#6e7781">banned / CAPTCHA</text></g>
+<g data-chip="e5"><rect x="1385" y="377" width="22" height="22" rx="11" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<circle cx="1396" cy="388" r="11" fill="#0969da"/><text x="1396" y="392.5" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">5</text>
+</g>
+<g data-chip="b1"><rect x="1361.6" y="307" width="80.80000000000001" height="22" rx="11" fill="#ffffff" stroke="#cf222e" stroke-width="1"/><text x="1402" y="323" text-anchor="middle" font-size="14" fill="#cf222e">no match</text></g>
+<g data-chip="e6"><rect x="1509.8" y="468" width="144.39999999999998" height="22" rx="11" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<circle cx="1520.8" cy="479" r="11" fill="#0969da"/><text x="1520.8" y="483.5" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">6</text>
+<text x="1537.8" y="484" font-size="14" fill="#0969da">span in source</text>
+</g>
+<g data-chip="s4"><rect x="1189.6" y="547" width="80.80000000000001" height="22" rx="11" fill="#ffffff" stroke="#6e7781" stroke-width="1"/><text x="1230" y="563" text-anchor="middle" font-size="14" fill="#6e7781">as a gap</text></g>
+<g data-chip="e7"><rect x="1272" y="117" width="151.99999999999997" height="22" rx="11" fill="#ffffff" stroke="#0969da" stroke-width="1"/>
+<circle cx="1283" cy="128" r="11" fill="#0969da"/><text x="1283" y="132.5" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">7</text>
+<text x="1300" y="133" font-size="14" fill="#0969da">back to advisor</text>
+</g>
+<path data-legend="main" d="M388 698L424 698" fill="none" stroke="#0969da" stroke-width="2.25" marker-end="url(#m-main)"/>
+<text x="434" y="703" font-size="14" fill="#57606a">main path: read by number</text>
+<path data-legend="side" d="M663.9999999999999 698L699.9999999999999 698" fill="none" stroke="#6e7781" stroke-width="1.5" marker-end="url(#m-side)"/>
+<text x="709.9999999999999" y="703" font-size="14" fill="#57606a">side branch</text>
+<path data-legend="back" d="M833.5999999999999 698L869.5999999999999 698" fill="none" stroke="#cf222e" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#m-back)"/>
+<text x="879.5999999999999" y="703" font-size="14" fill="#57606a">sent back on no match</text>
+</svg>
