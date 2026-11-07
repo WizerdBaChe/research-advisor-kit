@@ -1,4 +1,4 @@
-# fresh clone of fix/review-hardening-20261107 at 19bb330, 2026-11-07, run under an EMPTY home: CLAUDE_CONFIG_DIR, USERPROFILE and HOME pointed at a new empty folder
+# fresh clone of main at ee9ca1b, 2026-11-07, run under an EMPTY home: CLAUDE_CONFIG_DIR, USERPROFILE and HOME pointed at a new empty folder
 # run: python -X utf8 verify/run_controls.py <scratch>
 env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
 K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
@@ -12,7 +12,7 @@ K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
 K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
 K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
 K1k  verify/citecheck.py --selftest --offline: exit 0, '107 cases (53 must-pass / 54 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
-K2   loop/tests pytest: exit 0, 54 passed in 1.58s -> ok
+K2   loop/tests pytest: exit 0, 54 passed in 1.44s -> ok
 K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
 K4   test_secret_file_guard.py: exit 0, 'must-deny: 50   must-pass: 53   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
 K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
