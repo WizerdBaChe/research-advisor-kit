@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-TW" data-page-class="showcase">
+<!-- Fixed-size README image (960 px wide), screenshotted by build_assets.py: exempt from page-fill-gate
+     (a fixed-size canvas, not a page that reflows). Slots {{...}} are filled from real tool output. -->
+<head>
+<meta charset="utf-8">
+<title>research-advisor-kit hero</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  .cols { display:grid; grid-template-columns:222px 176px 1fr; gap:26px; align-items:start; margin-top:4px; }
+  .colhead { font-size:14px; color:var(--mute); margin:0 0 8px; letter-spacing:.04em; }
+  .qcard { background:var(--card); border:1px solid var(--rule); border-radius:6px; padding:16px 16px 14px;
+           box-shadow:0 3px 12px rgba(0,0,0,.07); font-size:17px; line-height:1.7; }
+  .qcard .src { margin-top:10px; font-size:12.5px; color:var(--mute); font-family:"Cascadia Mono","Consolas",monospace; }
+  .step { border:1.5px solid var(--blue); border-radius:5px; background:#f3f7fb; padding:10px 12px; font-size:15.5px; line-height:1.55; }
+  .step b { color:var(--blue); }
+  .link { width:2px; height:20px; background:var(--blue); margin:0 auto; position:relative; }
+  .link:after { content:""; position:absolute; left:-5px; bottom:-2px; border:6px solid transparent;
+                border-top:8px solid var(--blue); border-bottom:0; }
+  .box { padding:10px 12px; margin-bottom:12px; }
+  .box h2 { font-size:15px; margin-bottom:6px; }
+  pre.out { font-size:11.5px; }
+</style>
+</head>
+<body>
+  <h1>問一個研究問題，答案裡的文獻值都附可查核的原文</h1>
+  <p class="sub">顧問 (advisor) 先定位研究階段；要引用數字時，改派文獻員 (librarian) 取回原文，再由腳本逐條查核。</p>
+  <div class="cols">
+    <div>
+      <p class="colhead">輸入：一個研究問題</p>
+      <div class="qcard">{{PROMPT}}<div class="src">evals.json 案例 2</div></div>
+    </div>
+    <div>
+      <p class="colhead">顧問的步驟</p>
+      <div class="step"><b>定位</b><br>Tier 5 分析</div>
+      <div class="link"></div>
+      <div class="step"><b>需要文獻值時</b><br>以請求契約<br>派給文獻員</div>
+      <div class="link"></div>
+      <div class="step"><b>引用前查核</b><br>citecheck<br>逐條比對原文</div>
+    </div>
+    <div>
+      <p class="colhead">輸出：citecheck 實際輸出（節錄聲明行與 support 行）</p>
+      <div class="box ok"><h2><span class="tag">support OK</span>原文片段逐字存在</h2><pre class="out">{{OK}}</pre></div>
+      <div class="box fail"><h2><span class="tag">support FAIL</span>同一列，數字 22 改成 48 um</h2><pre class="out">{{FAIL}}</pre></div>
+    </div>
+  </div>
+</body>
+</html>

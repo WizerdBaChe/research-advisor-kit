@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-TW" data-page-class="diagram">
+<!-- Fixed-size README image (960 px wide), screenshotted by build_assets.py: exempt from page-fill-gate
+     (a fixed-size canvas, not a page that reflows). Slots {{...}} are filled from real tool output. -->
+<head>
+<meta charset="utf-8">
+<title>citecheck panel</title>
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+  <h1>citecheck：引用的數字，要在取回的原文裡找得到</h1>
+  <p class="sub">同一條聲明、同一份原文，只把一個數字從 22 改成 48，support 一列就由 OK 變 FAIL。以下為實際輸出。</p>
+  <div class="cmd">{{CMD0}}</div>
+  <div class="box ok"><h2><span class="tag">support OK</span>出處原文裡有這段話</h2><pre class="out">{{OUT0}}</pre></div>
+  <div class="cmd">{{CMD1}}</div>
+  <div class="box fail"><h2><span class="tag">support FAIL</span>改成 48 um 之後，原文裡沒有這段話</h2><pre class="out">{{OUT1}}</pre></div>
+  <p class="note"><b>比較黃底那一列。</b>兩次都另有 numeric FAIL 與數條 WARN：fixture 是離線、無 manifest 的舊式執行，輸出不剪裁。</p>
+</body>
+</html>

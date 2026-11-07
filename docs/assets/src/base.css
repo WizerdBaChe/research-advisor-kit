@@ -1,0 +1,27 @@
+/* Shared style of the README images. Light paper, serif headings, monospace for captured tool output.
+   No icons, logos or emoji: state is carried by a text label and a coloured left rule. Local fonts only. */
+:root { --ink:#1f2328; --mute:#5b6470; --paper:#fbfaf7; --rule:#d9d5cb; --card:#ffffff;
+        --blue:#2b5d8a; --ok:#2f6b3a; --fail:#a3311f; --warn:#8a6410; --okbg:#eef5ee; --failbg:#fbefec; }
+html, body { margin:0; background:var(--paper); }
+body { width:960px; box-sizing:border-box; padding:34px 40px 36px; color:var(--ink);
+       font-family:"Noto Serif TC","Source Han Serif TC","PMingLiU",Georgia,serif; font-size:16px; line-height:1.55; }
+h1 { font-size:27px; line-height:1.3; margin:0 0 6px; font-weight:700; letter-spacing:.01em; }
+.sub { color:var(--mute); font-size:15px; margin:0 0 20px; }
+.cmd { font-family:"Cascadia Mono","Consolas","Courier New",monospace; font-size:12.5px; color:var(--mute);
+       background:#f0eee7; border:1px solid var(--rule); border-radius:4px; padding:7px 10px; margin:0 0 14px;
+       white-space:pre-wrap; overflow-wrap:anywhere; }
+.box { background:var(--card); border:1px solid var(--rule); border-left:5px solid var(--mute); border-radius:4px;
+       padding:12px 14px 12px; margin:0 0 16px; }
+.box.ok { border-left-color:var(--ok); } .box.fail { border-left-color:var(--fail); }
+.box h2 { font-size:17px; margin:0 0 8px; font-weight:700; }
+.box h2 .tag { font-family:"Cascadia Mono","Consolas",monospace; font-size:12.5px; font-weight:700; padding:2px 7px;
+               border-radius:3px; margin-right:8px; vertical-align:2px; color:#fff; background:var(--mute); }
+.box.ok h2 .tag { background:var(--ok); } .box.fail h2 .tag { background:var(--fail); }
+pre.out { margin:0; font-family:"Cascadia Mono","Consolas","Courier New",monospace; font-size:12.5px; line-height:1.5;
+          white-space:pre-wrap; word-break:break-word; color:#22272e; }
+pre.out .OK { color:var(--ok); font-weight:700; } pre.out .FAIL { color:var(--fail); font-weight:700; }
+pre.out .WARN { color:var(--warn); font-weight:700; }
+pre.out .hl { background:#fff3c4; }
+pre.out .dim { color:var(--mute); }
+.note { color:var(--mute); font-size:14px; margin:6px 0 0; }
+.note b { color:var(--ink); }

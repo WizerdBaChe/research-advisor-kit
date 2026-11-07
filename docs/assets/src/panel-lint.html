@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-TW" data-page-class="diagram">
+<!-- Fixed-size README image (960 px wide), screenshotted by build_assets.py: exempt from page-fill-gate
+     (a fixed-size canvas, not a page that reflows). Slots {{...}} are filled from real tool output. -->
+<head>
+<meta charset="utf-8">
+<title>profile-lint panel</title>
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+  <h1>profile-lint：新增一個領域，缺檔與沒填的範本都會被指出</h1>
+  <p class="sub">在 _routing.md 加一列 demo_domain.md：先不建檔，再只複製沒填的 _template.md。路徑以 &lt;scratch&gt; 代換。</p>
+  <div class="box fail"><h2><span class="tag">{{N0}} FAIL</span>只有清單列，沒有檔案</h2>
+    <div class="cmd">{{CMD0}}</div><pre class="out">{{OUT0}}</pre></div>
+  <div class="box fail"><h2><span class="tag">{{N1}} FAIL</span>檔案已建立，但仍是沒填的範本</h2>
+    <div class="cmd">{{CMD1}}</div><pre class="out">{{OUT1}}</pre></div>
+  <p class="note">缺檔那條消失了（清單與檔案已對上），換成範本內容未填的 {{N1}} 條：必須把範本的每個節點填成真實內容，這個數字才會歸零。</p>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-TW" data-page-class="diagram">
+<!-- Fixed-size README image (960 px wide), screenshotted by build_assets.py: exempt from page-fill-gate
+     (a fixed-size canvas, not a page that reflows). Slots {{...}} are filled from real tool output. -->
+<head>
+<meta charset="utf-8">
+<title>host guard panel</title>
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+  <h1>主機守門：禁止代理存取的出版商，由 hook 擋下並說明改走哪條路</h1>
+  <p class="sub">同一個 hook、同一個工具 (WebFetch)，只換網址：arxiv.org 靜默放行，agent_banned 的主機被拒絕。</p>
+  <div class="box ok"><h2><span class="tag">allow</span>arxiv.org</h2>
+    <div class="cmd">{{CMD0}}</div>
+    <pre class="out">{{OUT0}}</pre></div>
+  <div class="box fail"><h2><span class="tag">deny</span>政策中標為 agent_banned 的主機</h2>
+    <div class="cmd">{{CMD1}}</div>
+    <pre class="out">{{OUT1}}</pre></div>
+  <p class="note">拒絕理由取自 hook 的 JSON 輸出 (permissionDecisionReason)，已把 \n 還原成換行、路徑以 &lt;scratch&gt; 代換，其餘逐字。</p>
+</body>
+</html>
