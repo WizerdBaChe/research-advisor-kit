@@ -87,7 +87,7 @@
 把下面這段貼給 Claude Code（或其他能讀檔、跑 Python 的 agent）：
 
 ```text
-請讀 https://github.com/WizerdBaChe/research-advisor-kit 的 AGENTS.md，照它的步驟：
+請讀 https://github.com/WizerdBaChe/research-advisor-kit/tree/v1.0.2 的 AGENTS.md（固定用 v1.0.2 這個版本，不要用 main），照它的步驟：
 1. 先跑 verify/run_controls.py，把結果和 verify/controls_run.txt 對照後告訴我；
 2. 列出 docs/BUILD-SPEC.md §8 裡要對應到我環境的設定（資料夾、環境變數、兩個 hook 的註冊），等我確認；
 3. 確認後把兩個 skill、hook 和工具裝進我的 ~/.claude。
@@ -101,6 +101,18 @@
 | 「我的研究卡在…」「下一步該做什麼」「這個實驗怎麼設計」 | 研究顧問 | 定位階段 → 六段診斷；需要文獻時，用固定格式的請求單派給文獻員 |
 | 「幫我找 X 主題的論文」「查這個參數的文獻值」 | 文獻員 | 拆需求 → 搜尋 → 標存取等級 → 抽取 → 引用查核 → 交付，附缺口（查不到的部分）與可信度 |
 | 「幫我找 5 篇 X 的論文做 evidence table」 | 文獻員（顧問不插手） | 純找文獻的請求，顧問不跑診斷 |
+
+### 不裝 agent，30 秒自己試一次引用查核
+
+需要 Python 3.11 以上，不需要 API 金鑰、不需要網路（`--offline`）。在 repo 根目錄：
+
+```text
+python -X utf8 reference-impl/skills/literature-search-extract/verify/citecheck.py reference-impl/skills/literature-search-extract/loop/tests/fixtures/good-run/ledger.jsonl --offline
+```
+
+會看到 `OK support`（原句在原文裡）與 `OK numeric`（主張的數字在原句裡），結尾 `0 FAIL`。
+接著打開同資料夾的 `ledger.jsonl`，把 `support_span` 裡的 `22 um` 改成 `48 um` 再跑一次，`support` 變成 `FAIL`——原文裡沒有這句。
+（範例是虛構的測試資料；其餘幾行 WARN 是因為它沒有走 `fetchsrc.py` 取回，所以沒有來源紀錄。試完記得改回來。）
 
 ### 自己手動跑工具
 
@@ -144,9 +156,12 @@ flowchart LR
 
 </details>
 
-## 這版有什麼（v1.0.1）
+## 這版有什麼（v1.0.2）
 
-- **v1.0.1 新增**：上方「運作流程」改成由腳本產生的讀者版流程圖，每個節點對應 SKILL.md 段落，附幾何自檢與故意畫壞的對照；原本的 mermaid 收進「文字版」。
+- **v1.0.2 修正（來自外部 agent 的審閱）**：全空白的引用原句、讀不懂的帳本列、空帳本、缺 `run.json` 的 run，以前會被放過，現在一律判失敗；
+  引用查核有 FAIL 的 run 不能再登記為已交付；`fetchsrc.py` 跟轉址時每一跳先判主機，DOI 轉到被禁的出版商時那一跳不會送出；
+  驗收不再讀你機器上已安裝的設定、沒有 PyMuPDF 也能跑；顧問的統計判斷表改正（小樣本不再優先 Bootstrap、預設 Welch、加入事後比較與混合模型）並附出處。
+- v1.0.1：「運作流程」改成由腳本產生的讀者版流程圖，每個節點對應 SKILL.md 段落。
 
 v1.0.0 起就有：
 
@@ -170,10 +185,11 @@ v1.0.0 起就有：
 ## 限制
 
 - **引用查核是篩子，不是證明**：`citecheck.py` 證明的是「原句確實在取回的原文裡、數字有出現」；**那句原文是否真的支持你的主張，仍要人判斷**。哪些規則是程式強制、哪些只是流程規則，見 [`docs/EVIDENCE.md`](docs/EVIDENCE.md) 的 Enforcement map。
-- **顧問的判斷大多是流程規則**：定位階段、六段診斷、不擅自動你的資料，是 agent 照 SKILL.md 做的，沒有程式強制；隨附的評測案例只有 5 題。
+- **防粗心，不防刻意繞路**：閘門擋得住「憑記憶打一句引文」「抄錯數字」「沒走 `fetchsrc.py` 取回」；擋不住一個刻意規避的 agent——來源紀錄沒有簽章、hook 只看字面上的網址。細節見 [`docs/EVIDENCE.md`](docs/EVIDENCE.md)「不宣稱」。
+- **顧問的判斷大多是流程規則**：定位階段、六段診斷、不擅自動你的資料，是 agent 照 SKILL.md 做的，沒有程式強制；隨附的評測案例只有 5 題，評的是「規則有沒有接上」，不是「建議對不對」。
 - **沒有領域知識**：領域清單是空的，顧問只用通用框架回答；要有領域深度，得自己寫領域檔。
 - **不幫你繞過付費牆**：被政策禁止或遇到反爬蟲的來源，一律列為「沒取到、交給使用者」。政策檔的主機清單是某個時間點的實測，出版商條款會變。
-- **只在 Windows 11 + Python 3.12 實測**（需要 3.11 以上）；本機教科書庫與 Zotero 連接器要用你自己的資料，乾淨環境下教科書工具的自我測試只能回報「無法判定」。
+- **只在 Windows 11 + Python 3.12 實測**（需要 3.11 以上，套件見 `verify/requirements.txt`；不需要 API 金鑰）；macOS 上有外部讀者量到的三項失敗已修正，但修正後沒在 macOS 重跑。本機教科書庫與 Zotero 連接器要用你自己的資料，乾淨環境下教科書工具的自我測試只能回報「無法判定」。
 - **拒絕訊息有兩處原樣保留的瑕疵**：政策檔某一列（以及 `search-sources.md` 的同一段）的依據引文在原環境就被截斷（句中斷在 "through an entitled se"）；拒絕訊息指向的誤判回報工具 `tools/hook-deny-lint/report_fp.py` 沒有隨附。兩者不影響放行／拒絕的判定。
 - 更多限制與人工驗收清單：[`docs/DEVELOPER.md`](docs/DEVELOPER.md#限制)。
 

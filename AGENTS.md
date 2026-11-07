@@ -17,7 +17,13 @@
   Citation spans, numbers in spans, metadata, provenance, host access and manifest structure are checked by
   scripts or hooks; stage diagnosis, method advice, non-intrusion and whether a span SUPPORTS a claim are
   process rules the agent follows from SKILL.md text.
-- **What was run:** Windows 11, Python 3.12.7, pytest 9.1.1, idutils 1.7.0, jsonschema 4.26.0. The recorded results are
+- **Threat model:** the gates catch a careless agent (a quote typed from memory, a copied number, a fetch that
+  skipped `fetchsrc.py`), not a deliberately evasive one: `sources/manifest.json` is unsigned, the hook reads only
+  literal URLs, and the secret-guard approval marker can be typed by anyone. Details: `docs/EVIDENCE.md` "不宣稱".
+- **API keys:** none are needed for the controls, `citecheck.py` or `fetchsrc.py` (neither reads a key; the
+  metadata lookups call public endpoints). Keys in `connectors/.env.example` only unlock optional connectors
+  (`connectors/registry.json`, status `needs_user`).
+- **What was run:** Windows 11, Python 3.12.7, pytest 9.1.1, PyMuPDF 1.26.7, idutils 1.7.0, jsonschema 4.26.0. The recorded results are
   `verify/controls_run.txt` (19 of 19 controls ok, 2 undetermined because they need a local textbook
   library); what was not run or not claimed is in `docs/EVIDENCE.md`.
 - **Network and side effects:** the acceptance controls make no network calls (citecheck runs with
@@ -57,7 +63,11 @@ python -X utf8 verify/run_controls.py <a-new-empty-dir>
 
 - `<a-new-empty-dir>` must not exist or be empty and must not overlap the repo: the script copies
   `reference-impl/` there, mutates the copy, and deletes it.
-- Needs Python 3.11 or newer (tomllib), `pytest`, `idutils` and `jsonschema`. PyMuPDF is optional (PDF text in normal use).
+- Needs Python 3.11 or newer (tomllib) and `pip install -r verify/requirements.txt` (`pytest`, `idutils`,
+  `jsonschema`). PyMuPDF is optional: without it K1k runs 85 cases instead of 105 and its last line says the
+  page-pointer (PDF) cases were skipped — report that to your user as "PDF path not checked here", not as a pass.
+- The controls never read an installed `~/.claude`: they point `CLAUDE_CONFIG_DIR` at an empty scratch folder and
+  `LSE_HOST_POLICY` at the repo's policy file, so a machine with an older install gets the fresh-machine result.
 - Compare with `verify/controls_run.txt`: every control line must end in `-> ok` and the asserted values
   must match. The two `UNDT` lines are expected on a machine without a textbook library. Report both to
   your user. A mismatch on another OS is a finding to read, not a reason to edit the scripts.

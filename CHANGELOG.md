@@ -3,6 +3,43 @@
 All notable changes to this repository. Versions follow semantic versioning: minor = new capability,
 patch = fix. Format after Keep a Changelog.
 
+## [1.0.2] - 2026-11-07
+
+Fixes found by four outside agents' reviews of v1.0.1 (one ran the controls on macOS).
+
+### Fixed
+
+- `verify/citecheck.py`: a whitespace-only `support_span` was "found" in every text; unreadable ledger
+  lines and an empty ledger exited 0; a run folder without `run.json` was judged as a legacy run (WARN
+  instead of FAIL on provenance). Each now fails; four selftest cases cover them (105 cases, 53/52).
+- `verify/citecheck.py --selftest` no longer needs PyMuPDF: without it the 20 page-pointer cases are
+  skipped and the tally line says so (before, K1k crashed on `import fitz`).
+- `loop/runs.py register` refuses a run whose `citecheck.json` carries a FAIL (before, only the later
+  `check` V8 reported it, after the run was already marked delivered).
+- `verify/fetchsrc.py` follows redirects itself and judges every hop's host before sending it: a DOI
+  resolver that redirects to a banned publisher no longer gets that request sent.
+- `connectors/access_policy.py --selftest` restores `LSE_HOST_POLICY` instead of dropping it.
+- `verify/run_controls.py` points `CLAUDE_CONFIG_DIR` at an empty scratch folder and `LSE_HOST_POLICY` at
+  the shipped policy: K1a and K6 had read an installed `~/.claude`, so a fresh machine got 17/19 (16/19
+  without PyMuPDF). The `good-run` fixture claim no longer carries a "± 3" its source does not have.
+- Advisor statistics (`method-selection.md`, `tier-framework.md` §5.6): bootstrap is no longer the
+  small-sample default (Hesterberg 2015); Welch by default, post-hoc tests (Tukey, Dunnett, Dunn + Holm),
+  trend tests and mixed models added; AUC-PR no longer called better than AUC-ROC under imbalance
+  (McDermott et al. 2024); sources listed in the file. Eval case 2's third assertion now requires a
+  design-fitted follow-up test.
+- `literature-search-extract` SKILL.md: P4.5 "narrows" failure mode #8 (it was "catches"); its
+  description no longer routes to an unshipped dispatch file (declared edit E6). `verification-gate.md`
+  case count updated.
+- `docs/EVIDENCE.md`: the ALCE figure carries its ELI5 condition; PyMuPDF and isolation facts corrected;
+  the threat model (careless agent, not an evasive one) stated; new enforcement rows; line refs remapped.
+- `verify/unshipped_paths.txt`: five cited origin paths that were missing (`report_fp.py`,
+  `exit_route.py`, `ops_health_nudge.py`, two paper-story files).
+
+### Added
+
+- `verify/requirements.txt`; README "try the citation check in 30 seconds" with no agent, no key, no
+  network; the agent install prompt pins the release tag.
+
 ## [1.0.1] - 2026-11-07
 
 ### Added

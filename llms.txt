@@ -2,7 +2,7 @@
 
 > Two Claude Code skills that work as a pair: scientific-research-guide, a research-methodology advisor that locates the user's research stage on a 7-tier framework and recommends the next step through five gates and a six-part diagnosis, and literature-search-extract, the literature search-and-extraction service it delegates to, where every load-bearing claim goes into an evidence ledger and verify/citecheck.py checks that the quoted span is verbatim in the retrieved text and that the claim's numbers are in the span. Ships with a PreToolUse hook that enforces a publisher host-access policy (no agent retrieval from hosts whose terms ban it; an anti-bot challenge is handed to the user), an API-key read guard, and the tools for adding domain profiles (none ship). Tested on Windows 11 and Python 3.12.
 
-Start at AGENTS.md. Pin a release tag, not main. Code MIT, documentation CC BY 4.0.
+Start at AGENTS.md. Pin a release tag, not main (current: https://github.com/WizerdBaChe/research-advisor-kit/tree/v1.0.2, the same tag the README install prompt names). No API key is needed. The gates catch a careless agent, not a deliberately evasive one (docs/EVIDENCE.md). Code MIT, documentation CC BY 4.0.
 
 ## Read-only route (no command execution)
 

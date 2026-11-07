@@ -160,7 +160,9 @@ README 的「運作流程」圖（`docs/assets/flow.zh-TW.png`、英文版 `flow
 ## 環境
 
 - 實測：Windows 11、Python 3.12.7、pytest 9.1.1、idutils 1.7.0、jsonschema 4.26.0。需要 Python 3.11 以上（`roots.py` 用 `tomllib`）；`idutils` 與 `jsonschema` 是驗收 K1e、K1h、K2 的必要套件。
-- 選用：PyMuPDF（讀 PDF 文字）、Zotero 本機資料庫、本機教科書庫；驗收不需要。
+- 必要套件：`pip install -r verify/requirements.txt`（pytest、idutils、jsonschema）。
+- 選用：PyMuPDF（讀 PDF 文字；沒裝時 K1k 略過 20 個頁指標案例並在結尾註明）、Zotero 本機資料庫、本機教科書庫。
+- 驗收不讀你已安裝的 `~/.claude`：`run_controls.py` 會把 `CLAUDE_CONFIG_DIR` 指到暫存區的空資料夾、`LSE_HOST_POLICY` 指到 repo 內的政策檔。
 - 機器根目錄由 `hooks/_lib/roots.py` 讀 `host.toml`（或環境變數 `HK_HOST_TOML` 指向的檔案）；乾淨環境用 `verify/host.toml`，所有選用根目錄都是 none。
 - 證據執行紀錄的位置：`LSE_RUN_HOME`、`LSE_INBOX`、`LSE_BIB_HOME`，沒設時用 host.toml 的 `NOTES_VAULT/literature/…`，兩者都沒有就停下來要你設定。
 - arXiv 禮貌性聯絡信箱：`LSE_ARXIV_CONTACT`，預設空白（不送任何聯絡資訊）。

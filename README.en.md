@@ -87,7 +87,7 @@ The kit splits the two jobs between two roles:
 Paste this to Claude Code (or any agent that can read files and run Python):
 
 ```text
-Read AGENTS.md in https://github.com/WizerdBaChe/research-advisor-kit and follow its steps:
+Read AGENTS.md in https://github.com/WizerdBaChe/research-advisor-kit/tree/v1.0.2 (use the pinned v1.0.2 release, not main) and follow its steps:
 1. Run verify/run_controls.py first, compare the result with verify/controls_run.txt and tell me;
 2. List the settings in docs/BUILD-SPEC.md §8 that must map to my environment (folders, environment variables, the two hook registrations) and wait for my confirmation;
 3. After I confirm, install the two skills, the hooks and the tools into my ~/.claude.
@@ -101,6 +101,18 @@ Do not change any check's verdict and do not edit hooks/literature-host-policy.j
 | "My research is stuck on…", "what should I do next", "how do I design this experiment" | research advisor | locate the stage → six-part diagnosis; when literature is needed, a fixed-format request goes to the librarian |
 | "Find papers on X", "look up the literature value of this parameter" | librarian | split the need → search → tag access level → extract → citation check → deliver, with gaps (what was not found) and a credibility note |
 | "Find 5 papers on X for an evidence table" | librarian (advisor stays out) | a pure retrieval request; the advisor runs no diagnosis |
+
+### Try the citation check yourself in 30 seconds, no agent
+
+Python 3.11 or newer; no API key and no network (`--offline`). From the repo root:
+
+```text
+python -X utf8 reference-impl/skills/literature-search-extract/verify/citecheck.py reference-impl/skills/literature-search-extract/loop/tests/fixtures/good-run/ledger.jsonl --offline
+```
+
+You see `OK support` (the quoted span is in the source) and `OK numeric` (the claim's numbers are in the span), ending in `0 FAIL`.
+Then open that folder's `ledger.jsonl`, change `22 um` to `48 um` in `support_span` and run it again: `support` turns `FAIL`, because the source has no such sentence.
+(The example is fictional test data; the remaining WARN lines appear because it was not retrieved through `fetchsrc.py`, so it has no source record. Change it back afterwards.)
 
 ### Running the tools by hand
 
@@ -144,9 +156,12 @@ flowchart LR
 
 </details>
 
-## What's in this version (v1.0.1)
+## What's in this version (v1.0.2)
 
-- **New in v1.0.1:** the "How it flows" section is now a script-rendered reader diagram; every node maps to a SKILL.md passage, with geometry self-checks and deliberately broken controls; the mermaid flow moves into a text version.
+- **Fixed in v1.0.2 (from outside agents' reviews):** a blank quoted span, unreadable ledger lines, an empty ledger and a run without `run.json` used to pass and now fail;
+  a run whose citation check carries a FAIL can no longer be registered as delivered; `fetchsrc.py` judges every redirect hop before sending it, so a DOI that redirects to a banned publisher never gets that request sent;
+  the acceptance run no longer reads the settings installed on your machine and runs without PyMuPDF; the advisor's statistics tables are corrected (no bootstrap-first for small samples, Welch by default, post-hoc tests and mixed models added) and cite their sources.
+- v1.0.1: the "How it flows" section became a script-rendered reader diagram; every node maps to a SKILL.md passage.
 
 Since v1.0.0:
 
@@ -170,10 +185,11 @@ Since v1.0.0:
 ## Limits
 
 - **The citation check is a sieve, not a proof:** `citecheck.py` proves "the span is really in the retrieved text and the numbers appear"; **whether that span supports your claim still needs a human**. Which rules code enforces and which are process rules: the Enforcement map in [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
-- **Most of the advisor's judgement is process rules:** locating the stage, the six-part diagnosis and leaving your data alone are done by the agent from SKILL.md, not enforced by code; the shipped eval set has only 5 cases.
+- **It guards against carelessness, not deliberate evasion:** the gates catch a quote typed from memory, a copied number and a fetch that skipped `fetchsrc.py`; they do not stop an agent that sets out to get around them (the source record is unsigned, the hook reads only literal URLs). Details: "不宣稱" in [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
+- **Most of the advisor's judgement is process rules:** locating the stage, the six-part diagnosis and leaving your data alone are done by the agent from SKILL.md, not enforced by code; the shipped eval set has only 5 cases, and it grades whether the rules are wired in, not whether the advice is right.
 - **No domain knowledge:** the domain list is empty and the advisor answers from the generic framework; domain depth means writing your own profile.
 - **No paywall workarounds:** a source the policy bans or an anti-bot page answers is always recorded as "not retrieved, handed to the user". The policy's host list was checked at one point in time; publisher terms change.
-- **Tested only on Windows 11 + Python 3.12** (3.11 or newer required); the local textbook library and the Zotero connector need your own data, and in a clean environment the textbook tool's self-test can only report "undetermined".
+- **Tested only on Windows 11 + Python 3.12** (3.11 or newer required, packages in `verify/requirements.txt`; no API key needed); three failures an outside reader measured on macOS are fixed but not re-run on macOS. The local textbook library and the Zotero connector need your own data, and in a clean environment the textbook tool's self-test can only report "undetermined".
 - **Two flaws in the deny message are kept as shipped:** one policy row's quoted basis (and the same passage in `search-sources.md`) was already truncated at the origin (it breaks off at "through an entitled se"); the false-positive reporter the message points to, `tools/hook-deny-lint/report_fp.py`, is not shipped. Neither changes the allow/deny verdict.
 - More limits and the manual acceptance checklist: [`docs/DEVELOPER.md`](docs/DEVELOPER.md#限制) (Traditional Chinese).
 

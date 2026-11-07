@@ -134,11 +134,11 @@ Machine tolerance: Python 3.11 or newer (tomllib), pytest, and the packages in s
 | K1h | `loop/runs.py --selftest` | exit 0, output contains "calibrated" | (inside) |
 | K1i | `verify/fetchsrc.py --selftest` | exit 0, "0 broken - calibrated" | refused host, challenge, per-host cap (inside, stub transport) |
 | K1j | `verify/staleclaim.py --selftest` | exit 0, "8 cases (5 must-pass / 3 must-fail), 0 broken" | the 3 must-fail cases (inside) |
-| K1k | `verify/citecheck.py --selftest --offline` | exit 0, "101 cases (53 must-pass / 48 must-fail), 0 broken" | the 48 must-fail cases (inside) |
-| K2 | `pytest loop/tests` | exit 0, "52 passed" | (assertions inside) |
+| K1k | `verify/citecheck.py --selftest --offline` | exit 0, "105 cases (53 must-pass / 52 must-fail), 0 broken" (without PyMuPDF: 85 cases and "[page-pointer cases skipped: no PyMuPDF]") | the 52 must-fail cases (inside) |
+| K2 | `pytest loop/tests` | exit 0, "53 passed" | (assertions inside, incl. register refusing a FAIL citecheck.json) |
 | K3 | `hooks/tests/test_literature_host_guard.py` | exit 0 and "ALL TESTS PASSED" | the D-* deny cases (inside) |
 | K4 | `tools/secret-guard-test/test_secret_file_guard.py` | exit 0 and "failures: 0"; must-deny 50, must-pass 53 | the 50 must-deny shapes; 3 undetermined and 3 unclassifiable-shape (fail-open) are reported, not counted |
-| K5 | citecheck support check on `good-run` | support verdict `OK` (span found verbatim) | the same row with "22 um" changed to "48 um" in span and "22 ±" to "48 ±" in claim: support verdict `FAIL` |
+| K5 | citecheck support check on `good-run` | support verdict `OK` (span found verbatim) | the same row with "22 um" changed to "48 um" in span and "= 22 μm" to "= 48 μm" in claim: support verdict `FAIL` |
 | K6 | `literature_host_guard.py` fed a WebFetch payload | arXiv URL: silent allow (exit 0, no output) | the IEEE Xplore document URL: `permissionDecision` = `deny` |
 | K7 | `profile-lint.py --root` on three trees | shipped skill root: (0 FAIL, 0 WARN) | `evals/fixtures/routing-collision`: (2, 6); `evals/fixtures/frontmatter-drift`: (2, 0) |
 | K8 | `eval-impact.py --files` against the shipped (empty) manifest | `references/method-selection.md`: RE-RUN 3 of 5 cases (2, 3, 5) | `references/deliverables.md`: 0 cases |
@@ -147,6 +147,9 @@ Machine tolerance: Python 3.11 or newer (tomllib), pytest, and the packages in s
 Not counted (reported as `UNDT`): `connectors/local_find.py --selftest` and `connectors/textbook_ocr.py
 --selftest` need a local textbook library; on a machine without one they exit non-zero and the transcript
 says so. The expected final line on a clean machine is `19/19 controls ok, 2 undetermined (not counted)`.
+Every control reads the repo's files only: `run_controls.py` sets `CLAUDE_CONFIG_DIR` to an empty scratch
+folder and `LSE_HOST_POLICY` to the shipped policy file, so an installed `~/.claude` cannot change a verdict.
+Packages: `verify/requirements.txt`.
 
 Visual or judgement acceptance (whether the advisor's diagnosis is useful, whether an extraction is the
 right one) is a human check; the controls prove the gates, not the judgement.
@@ -253,6 +256,7 @@ overlay). Each edit below must hit its stated count or the build stops before wr
 | E5a | `skills/scientific-research-guide/SKILL.md` | the description no longer lists the origin's domains; it points at the profiles registered in `domains/_routing.md` (none ship) |
 | E5b | `skills/scientific-research-guide/SKILL.md` | the Step 0 example row points at `domains/<domain>.md` and says the public kit ships the manifest empty |
 | E5c | `skills/scientific-research-guide/SKILL.md` | the reference-map line about Layer B base profiles says none ship and points at the expansion guide |
+| E6 | `skills/literature-search-extract/SKILL.md` | the description's routing line for uncited broad sweeps no longer points at an unshipped dispatch file; it names the task class and says the kit ships no such agent |
 | R2 | all text files (8 hits) | the lab's round identifier in provenance lines becomes "a research round" (dates and lesson ids kept) |
 | R3 | all text files (11 + 7 + 1 + 0 hits) | the school's library, its guide and its subscription wording become "a university library's", "the library guide", "an institutional subscription"; a fourth rule (a bare school name becomes "the university") is kept as a guard and now hits 0, since E4g handles the one remaining mention |
 | R4 | all text files (6 + 6 hits) | the private notes-vault folder and the private textbook folder become the tokens `<NOTES_VAULT>` and `<TEXTBOOKS>` |
