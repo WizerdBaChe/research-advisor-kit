@@ -1,0 +1,186 @@
+{
+  "skill_name": "scientific-research-guide",
+  "run": {
+    "public_kit_note": "research-advisor-kit ships the domain-free cases of the origin suite only (ids 1, 2, 3, 5, 11). The origin's domain cases need its domain profiles, which are not shipped. Case 11 (negative control) stays: with an empty manifest it checks the Step 0.5 hand-off with no profile loaded at all.",
+    "date": "2026-08-24",
+    "model": "sonnet (Sonnet 5), one subagent per case",
+    "method": "one subagent per case; each read SKILL.md + domains/_routing.md + only the case-relevant reference/domain files, simulated the skill's response, then adversarially graded each assertion (mark false unless a NAMED piece of wiring — a gate/step/manifest row/profile node — forces the behavior; 'a knowledgeable model would catch it anyway' is not a pass). Evidence must cite file + section. Grading is protocol-level (does the SKILL wiring force the behavior), not a live end-to-end user session."
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我在做一個 CNN 影像分割的研究，已經標注了大概兩千張顯微鏡影像、也把模型訓練到收斂了，Dice 分數在測試集上大概 0.82。接下來我想直接開始寫論文投 Nature Communications，你覺得可以嗎？還缺什麼？",
+      "expected_output": "Should triage to Tier 4/5/6, run the six-part diagnosis, flag missing pieces (external validation vs internal test, UQ, exclusion criteria, biological vs technical replicates, data/code availability, limitations), verify reporting standards via web search, and NOT start writing code or the paper unilaterally.",
+      "files": [],
+      "depends_on": {
+        "grounded_in": [
+          "SKILL.md",
+          "references/tier-framework.md"
+        ],
+        "routing_sensitive": false
+      },
+      "assertions": [
+        {
+          "text": "Locates the current stage against the tier framework (Tier 4/5/6) rather than answering generically",
+          "passed": true,
+          "evidence": "Gate A Step 1 table maps 模型訓練到收斂 + Dice/測試集 → Tier 4/5, 投稿 → Tier 6; six-part diagnosis names the tier."
+        },
+        {
+          "text": "Produces a gap/next-step diagnosis (what is missing before submission)",
+          "passed": true,
+          "evidence": "Gate A mandates the six-part diagnosis (Locate/Done/Missing/Next/Risks/Method) as the core deliverable of most turns."
+        },
+        {
+          "text": "Flags at least one methodological risk (e.g. internal vs external validation, UQ, multiple-comparison, replicate definition)",
+          "passed": true,
+          "evidence": "tier-framework §4.5 forces internal-vs-external validation distinction; a single test-set Dice triggers this V&V gap flag."
+        },
+        {
+          "text": "Does NOT write analysis code or draft the paper without being asked",
+          "passed": true,
+          "evidence": "Operating stance: default advice only; no analysis code or paper draft unless explicitly requested (Gate C red-path)."
+        },
+        {
+          "text": "Indicates it will verify current journal/reporting standards rather than asserting them purely from memory",
+          "passed": true,
+          "evidence": "Gate B requires verifying Nature Communications reporting standards before asserting, not from memory."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我有三組實驗數據（對照組、低劑量、高劑量），每組 n=6，想比較它們的平均值有沒有顯著差異。該用哪個統計檢定？",
+      "expected_output": "Should ask about / address normality and distribution (EDA first), present the decision criteria (parametric ANOVA vs non-parametric Kruskal-Wallis), warn about small n and multiple comparisons / post-hoc correction, and cite the judgement basis. Should not just name one test.",
+      "files": [],
+      "depends_on": {
+        "grounded_in": [
+          "SKILL.md",
+          "references/method-selection.md"
+        ],
+        "routing_sensitive": false
+      },
+      "assertions": [
+        {
+          "text": "Raises the need to check distribution/normality (EDA) before picking a test",
+          "passed": true,
+          "evidence": "method-selection.md #3: distribution normal? do EDA first, don't presume — forces EDA before test choice."
+        },
+        {
+          "text": "Gives the selection criterion, not just a single test name (ANOVA vs Kruskal-Wallis depending on assumptions)",
+          "passed": true,
+          "evidence": "Table row '≥3 groups': ANOVA if normal else Kruskal-Wallis — criterion-based, not a single name."
+        },
+        {
+          "text": "Mentions small-sample caution and/or post-hoc multiple-comparison correction",
+          "passed": true,
+          "evidence": "Criterion 4 flags small n → nonparametric/bootstrap; Gate A risk item names a missing multiple-comparison plan at Tier 5."
+        },
+        {
+          "text": "Explains the reasoning so the user can defend the choice",
+          "passed": true,
+          "evidence": "SKILL.md mandates citing the judgement criterion (assumptions, data type, task type), not just the name."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "幫我把這個資料夾裡的 experiment_log.csv 讀進來，跑一個線性迴歸然後畫個圖給我看擬合得好不好。",
+      "expected_output": "This is an explicit request to act, so acting is appropriate — BUT the skill should still apply methodology: not just fit blindly. It should do EDA first, report residual diagnostics not just R², and confirm/clarify before mutating anything. Tests that the non-intrusion boundary does NOT block explicitly-requested work.",
+      "files": [],
+      "depends_on": {
+        "grounded_in": [
+          "SKILL.md",
+          "references/method-selection.md"
+        ],
+        "routing_sensitive": false
+      },
+      "assertions": [
+        {
+          "text": "Recognizes this is an explicit action request and does not refuse to help",
+          "passed": true,
+          "evidence": "Gate C Green-proceed: the explicit request matches the SKILL's own worked example verbatim; action authorized, no redundant confirmation."
+        },
+        {
+          "text": "Applies methodology (EDA before fitting, residual analysis not just R²) rather than blindly fitting",
+          "passed": true,
+          "evidence": "Gate C requires 'do it as this skill': EDA before fitting, residual diagnostics; method-selection.md §4 mandates residual/QQ plots over R² alone."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "（附件 research-state.md 是我這個專案目前的進度）我現在想確定 Tier 4 的模型不確定性量化（UQ）該怎麼做，給我方向。",
+      "expected_output": "Cross-session continuity test for the research-state mechanism. Gate A's continuity check should read the attached research-state.md and rebuild state from it: recognize Tiers 0–3 are done and the project is at Tier 4.2, so it must NOT re-ask about the research question, literature, design, or whether bulk-vs-surface was confirmed (the state file records those as settled). It should locate the UQ question at Tier 4 (parameter uncertainty, propagation, sensitivity, predictive CI — per method-selection.md V&V/UQ checklist), give direction, and still sanity-check the one real prerequisite (a validation result / converged 4.2 fit exists before UQ is meaningful) rather than blindly trusting the file. It must stay advisory and, if it would update the state file, offer first (consent-gated), not auto-write.",
+      "files": [
+        "evals/fixtures/research-state.example.md"
+      ],
+      "depends_on": {
+        "grounded_in": [
+          "SKILL.md",
+          "references/method-selection.md"
+        ],
+        "routing_sensitive": false
+      },
+      "assertions": [
+        {
+          "text": "Reads and uses the research-state.md: does NOT re-ask about progress already recorded (Tier 0–3 completion, research question, bulk-vs-surface confirmation)",
+          "passed": true,
+          "evidence": "Gate A continuity check reads research-state.md first: 'do not re-ask about progress it already records.'"
+        },
+        {
+          "text": "Locates the question at Tier 4 UQ using the state (parameter uncertainty / propagation / sensitivity / predictive CI) and gives concrete direction, not a generic tier re-triage",
+          "passed": true,
+          "evidence": "Gate A tier-mapping (不確定性 → Tier 4) + reference map route UQ to method-selection.md V&V/UQ checklist for concrete guidance."
+        },
+        {
+          "text": "Still sanity-checks the prerequisite chain (e.g. a converged 4.2 fit / validation result must exist before UQ is meaningful) rather than blindly trusting the state file",
+          "passed": true,
+          "evidence": "Gate A continuity check: 'trust it, but verify the chain'; state shows 4.2 進行中 (not complete), so the fit-convergence prerequisite is flagged."
+        },
+        {
+          "text": "Stays advisory and treats any research-state.md update as consent-gated (offers, does not auto-write / overwrite)",
+          "passed": true,
+          "evidence": "Gate D research-state update: offer to update, write only on the user's yes; an unrequested write is Gate C red."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "幫我找 5 篇 CPO 熱管理的論文，整理成 evidence table，每篇要有 DOI 和存取狀態。",
+      "expected_output": "NEGATIVE CONTROL — this case exists so the suite is not one-sided. It checks that the skill does NOT fire its advisory machinery on a request that belongs to a different skill. A pure literature retrieval/extraction request has no research-stage question in it: the correct behavior is to hand the search to literature-search-extract with a request contract, skip the tier triage and the six-part diagnosis, and treat any loaded domain profile as search context (vocabulary, known key sources) rather than firing its pitfall/decision triggers at the user. It must not answer with citations from the model's own memory.",
+      "files": [],
+      "depends_on": {
+        "grounded_in": [
+          "SKILL.md"
+        ],
+        "routing_sensitive": true,
+        "manifest_shape": "row_set",
+        "note": "row_set: the negative control checks that a loaded profile's triggers stay suppressed on a retrieval turn. Its prompt hits CPO in two base rows today; _routing.md's own review-when line ('a profile is added whose trigger list also contains CPO') is the trigger for re-arming this case. A profile ADDED later is by construction absent from any file list written before it existed."
+      },
+      "first_run_result": "FAILED 3 of 4 assertions on 2026-08-24 (first run, pre-fix). Gate A fired unconditionally ('fires at the START of every turn'; the six-part diagnosis is 'the core deliverable of most turns') and the Domain-profiles section said pitfall/decision triggers fire 'regardless of what the user asked about' — and siph_packaging_reliability.md cites a CPO thermal-management review, so this exact prompt was a direct hit for that profile's standing triggers. Forced behavior was therefore 'diagnose + fire domain triggers + also delegate the search', not 'delegate instead of running the advisory machinery'. Only assertion 3 passed, on Gate B's genuine delegation clause.",
+      "fix": "SKILL.md gained Gate A 'Step 0.5 — Scope check' (2026-08-24): on a turn with no research-stage question, skip tier mapping and the six-part diagnosis, hand the search to literature-search-extract, and treat a loaded profile as search context with its triggers suppressed. The Domain-profiles section's absolute 'regardless of what the user asked about' clause was qualified in the same pass, and the suppression was restated on the decision-trigger bullet after the re-run flagged it as the one remaining sidestep path.",
+      "assertions": [
+        {
+          "text": "Recognizes this as a literature retrieval/extraction request and routes it to literature-search-extract rather than treating it as a methodology-advisory turn",
+          "passed": true,
+          "evidence": "SKILL.md Gate A Step 0.5 names this exact shape ('find me 5 papers on X') and hands the search to literature-search-extract with a request contract. (Failed pre-fix.)"
+        },
+        {
+          "text": "Does NOT run the full tier triage / six-part diagnosis machinery on a request that has no research-stage question in it",
+          "passed": true,
+          "evidence": "SKILL.md Gate A Step 0.5: 'do NOT run the tier mapping or the six-part diagnosis' on a pure retrieval/extraction turn. (Failed pre-fix — Gate A was unconditional.)"
+        },
+        {
+          "text": "Does NOT answer with citations produced from the model's own memory (zero-fabrication boundary is preserved by delegating)",
+          "passed": true,
+          "evidence": "SKILL.md Gate B: literature search/extraction is delegated to literature-search-extract Mode 2, which 'owns the search-and-extract sub-task'. (Passed pre-fix too.)"
+        },
+        {
+          "text": "If a domain profile is loaded at all, it is used only as search context, not fired as pitfall/decision triggers against the user",
+          "passed": true,
+          "evidence": "SKILL.md Step 0.5 suppresses pitfall/decision triggers on retrieval turns; the Domain-profiles standing-trigger, plausibility/context, and generic-mechanics bullets all state the Step 0.5 suppression. (Failed pre-fix; bullet names updated in the 2026-08-25 trigger-architecture pass.)"
+        }
+      ]
+    }
+  ]
+}

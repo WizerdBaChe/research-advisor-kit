@@ -1,0 +1,461 @@
+{
+  "schema_version": 1,
+  "owner_skill": "literature-search-extract",
+  "note": "Routing table AND capability wishlist. Every entry is either a channel P2 may route to today (status: live/available) or a named thing the user could supply to unlock a channel (status: needs_user). Nothing here ever holds a credential value — only the NAME of the variable and the PATH of the file that holds it. See README.md for the contract.",
+  "review_when": "a connector's invoke surface changes (new/renamed endpoint or CLI flag), a credential file moves, a status flips, or probe.py reports contract_drift",
+  "status_vocabulary": {
+    "live": "registered, probed green, P2 may route to it now",
+    "available": "usable with tools already in this runtime; no user action needed",
+    "needs_user": "blocked on something only the user can supply (key, subscription, login, path, running process)",
+    "planned": "designed, not built",
+    "retired": "was real, is gone. Kept as a tombstone rather than deleted, because the name still appears in older notes and a silent disappearance reads as 'I forgot to check' — see the prism entry",
+    "declined": "the user was asked and said no. NOT the same as needs_user: do not re-offer it every session, do not treat its absence as an unresolved gap, and do not quietly route around the reason it was declined. Re-raise only if the reason changes"
+  },
+  "connectors": [
+    {
+      "id": "patentsgrabber",
+      "status": "live",
+      "registered": "2026-08-26",
+      "source_class": "patents",
+      "answers": "Patent prior art and patent-literature extraction: US and EP publications — bibliography, claims (parsed into independent/dependent tree), full description text, drawings, INPADOC family and legal events, applicant/inventor/title-abstract search.",
+      "why_it_matters_here": "SKILL.md source_types names standards and formal literature but had no patent channel at all. Patent specifications are primary sources for method and parameter extraction in applied fields, and OPS carries US publications months before Google Patents indexes them.",
+      "access_ceiling": "full",
+      "access_ceiling_note": "US: full text only when Google Patents has the document; otherwise OPS bibliography + scanned original = [partial]. EP: full text from Google Patents or OPS, in the FILING LANGUAGE only (a DE applicant's EP case is German).",
+      "invoke": {
+        "kind": "http_loopback",
+        "base_url": "http://127.0.0.1:8000",
+        "project_root": "${WORK_ROOT}/PatentsGrabber",
+        "start": {
+          "cwd": "${WORK_ROOT}/PatentsGrabber",
+          "argv": ["python", "run.py"],
+          "human": "python run.py  (or double-click run.bat, which also opens a browser)",
+          "identity_marker": "run.py",
+          "ready_timeout_s": 45,
+          "log": "var/connector-autostart.log"
+        },
+        "openapi": "/openapi.json",
+        "endpoints": [
+          {
+            "path": "/api/query",
+            "params": ["q", "field", "us_only", "scope", "start", "size"],
+            "use_for": "THE FRONT DOOR. A number returns a card, anything else returns a search list. Use this, not /api/patent.",
+            "required": true
+          },
+          {
+            "path": "/api/patent",
+            "params": ["q", "refresh"],
+            "use_for": "US numbers only — measured 2026-08-26: rejects 'EP1000000A1' with 'cannot interpret as a US patent number'.",
+            "required": true
+          },
+          {
+            "path": "/api/library",
+            "params": [],
+            "use_for": "Local corpus inventory (already-fetched patents). Costs no OPS quota — use as the probe and as the reuse-before-re-search check.",
+            "required": true
+          },
+          {
+            "path": "/api/enrich",
+            "params": ["q", "refresh"],
+            "use_for": "What OPS adds for one document. One OPS call, no page bytes.",
+            "required": false
+          },
+          {
+            "path": "/api/ops/inpadoc",
+            "params": ["q"],
+            "use_for": "INPADOC family + legal events. Two OPS calls — only when the question needs family scope or legal status.",
+            "required": false
+          }
+        ]
+      },
+      "probe": {
+        "path": "/api/library",
+        "expect_status": 200,
+        "expect_json_key": "count"
+      },
+      "secrets": {
+        "env_file": "${WORK_ROOT}/PatentsGrabber/.env",
+        "vars": ["OPS_CONSUMER_KEY", "OPS_CONSUMER_SECRET"],
+        "agent_may_read": false,
+        "redaction_evidence": "src/patentsgrabber/config.py — OpsConfig.describe() and __repr__ return length + last 3 chars only, so a traceback cannot carry the value.",
+        "leak_scan": true
+      },
+      "cost": {
+        "metered": true,
+        "meter": "EPO OPS quota, read from OPS's own response headers by the tool (never a hard-coded threshold)",
+        "free_calls": ["/api/library", "cached cards in var/library.sqlite3"],
+        "search_trail_label": "PatentsGrabber (EPO OPS quota spent: <what the response reported>)"
+      },
+      "terms": {
+        "boundary": "EPO OPS T&C 3.2 — OPS data itself may NOT be made available to the public (breach -> termination under 8.3). Local reading and quoting into a private deliverable is fine; publishing an OPS-derived dataset or a public page is not.",
+        "second_boundary": "Google Patents: single-document pages only (robots.txt allows /patent/, disallows search). The tool enforces this; do not work around it.",
+        "deliverable_rule": "A deliverable built on this connector that the user intends to PUBLISH must have OPS-sourced content flagged so the user can strip it."
+      }
+    },
+
+    {
+      "id": "browser_session",
+      "status": "available",
+      "source_class": "extract_render",
+      "answers": "Renders a JS-heavy page of a NAMED document on a host whose policy row lists browser_headless (open / public hosts). It is NOT a way past an anti-bot answer, a 403, or a consent wall on a publisher host — those are routing signals (hand-to-user), per rules/literature-access.md.",
+      "why_it_matters_here": "portability.md listed extract_render with NO Claude Code binding ('-- WebFetch limit'). That was wrong: this runtime has two. Measured 2026-08-26: WebFetch returned HTTP 403 on perplexity.ai/hub/blog — a public blog, which is the shape this slot is for. Rewritten 2026-09-11: the earlier text ('anti-bot or consent-walled publisher pages') contradicted the access rule and a university library's guide's red line (crawler / batch access to subscribed content -> IP block + VPN disabled).",
+      "access_ceiling": "full",
+      "invoke": {
+        "kind": "mcp",
+        "gate": "python connectors/access_policy.py --url <u> --surface browser_headless --check  (exit 1 = do not render)",
+        "primary": "mcp__playwright-headless__* (installed Chrome, no window, no login) — only when the policy row lists browser_headless",
+        "logged_in": "mcp__claude-in-chrome__* is surface browser_user: NO scholarly policy row grants it. Reserved for a page the user explicitly asks to be driven in their own session, never chosen by the agent to get past a wall.",
+        "rule": "Policy first, render second. A challenge (202/403/418/CAPTCHA/PoW) after a permitted render attempt ends the host for the run — no second costume."
+      },
+      "secrets": {
+        "env_file": null,
+        "note": "No key. The credential here is the user's LIVE BROWSER SESSION, which is why claude-in-chrome is not an agent route at all on scholarly hosts."
+      },
+      "cost": {"metered": false, "search_trail_label": "browser render (playwright-headless, policy row <host>)"},
+      "terms": {
+        "boundary": "Rendering a public page of a named document is fine when the policy row says so. A logged-in session is never used to read a subscribed corpus programmatically — publisher anomaly detection blocks the institution's IP range and the library disables the VPN (a university library's guide 2026, p18); the host guard hook enforces the banned rows machine-wide."
+      }
+    },
+
+    {
+      "id": "prism",
+      "status": "retired",
+      "retired_on": "2026-08-27",
+      "source_class": "local_corpus",
+      "answers": "(was) Ranked and related sources inside universes the user had already ingested; export_bibliography fed the result contract's sources field.",
+      "blocked_on": "RETIRED — user ruling 2026-08-27: the MCP server is switched off and the system behind it is being rebuilt. This confirms the 2026-08-26 measurement (configured in ~/.claude.json but no mcp__prism__* tool exposed); the cause was retirement, not a transient failure. 2026-09-18: user ruling 'will not use it again' — the mcpServers.prism registration was removed from ~/.claude.json (it had been failing every session start with ConnectionRefused); retirement is now permanent, not pending a rebuild.",
+      "user_action": "None. Do NOT probe for it, do not treat its absence as a degraded run, and do not report it in gaps — an absent retired channel costs no coverage. If the rebuilt system reappears under a different name, register that as a NEW connector rather than reviving this entry.",
+      "tombstone_reason": "Kept rather than deleted because the name still appears in older notes and prior deliverables' search_trail. A reader who finds 'prism' there needs to learn it is gone, not wonder whether the run forgot to check it.",
+      "access_ceiling": "partial",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "(retired — do not use)"}
+    },
+
+    {
+      "id": "openalex",
+      "status": "declined",
+      "declined_on": "2026-08-27",
+      "declined_note": "User ruling after being shown the trade-off. Consequence to state honestly, not to route around: coverage-type questions ('how much literature exists on X', 'is this one group's consensus') cannot be answered well. Semantic Scholar + Crossref cover citation chains and metadata but give no global statistical view. Ordinary paper-finding is unaffected. Keyless OpenAlex is 100 credits/day then 409, so treat the channel as absent rather than degraded.",
+      "source_class": "scholarly_index",
+      "answers": "Broad scholarly graph (~250M works): coverage checks, 'who works on X', venue/author entities, citation counts.",
+      "blocked_on": "An API key has been MANDATORY since 2026-02-13. Keyless calls get 100 credits/day for testing, then 409. The polite pool and the mailto parameter were eliminated in the same change (verified 2026-08-26 from the openalex-users announcement).",
+      "user_action": "Free key at openalex.org/settings/api (100,000 credits/day). Highest value-per-effort item on this list: one free form, and it restores a channel the skill currently degrades past on every run.",
+      "access_ceiling": "abstract",
+      "secrets": {
+        "env_file": "<not yet created> — proposed: ~/.claude/skills/literature-search-extract/connectors/.env",
+        "vars": ["OPENALEX_API_KEY"],
+        "agent_may_read": false
+      },
+      "cost": {"metered": true, "meter": "credits/day; singleton 1, list 10, search 100-1000", "search_trail_label": "OpenAlex (keyed, N credits)"}
+    },
+
+    {
+      "id": "unpaywall",
+      "status": "declined",
+      "declined_on": "2026-08-27",
+      "declined_note": "User ruling: a privacy choice, deferred rather than refused ('我再想'). Consequence: a paywalled paper stops at [abstract] even when a legal OA copy exists on arXiv, PMC or an institutional repository — nothing here goes looking for it. Do NOT substitute an ad-hoc OA hunt to compensate; that is routing around the reason. If a specific paper matters, say the OA copy may exist and let the user fetch it.",
+      "source_class": "oa_resolver",
+      "answers": "Given a DOI, finds a LEGAL open-access copy of the full text.",
+      "why_it_matters_here": "The single biggest access-tag upgrade available: it converts [abstract] items into [full] ones without touching a paywall. The skill has no OA-resolution step at all today.",
+      "blocked_on": "Needs an email address as the API parameter (no key, no account).",
+      "user_action": "Decide which email to send. It becomes part of every request, so it is a privacy choice, not a technical one — same class as the Crossref polite pool.",
+      "access_ceiling": "full",
+      "secrets": {"env_file": "<proposed connectors/.env>", "vars": ["UNPAYWALL_EMAIL"], "agent_may_read": false},
+      "cost": {"metered": false, "search_trail_label": "Unpaywall (user's mailto spent)"}
+    },
+
+    {
+      "id": "ieee_xplore",
+      "status": "needs_user",
+      "source_class": "publisher_api",
+      "answers": "EE / photonics / CS metadata and, with the right subscription, full text — the field where this user's actual research questions live.",
+      "blocked_on": "Registered developer account + manually issued key; full text additionally needs an institutional subscription. search-sources.md currently declares this channel UNAVAILABLE and falls back to scraping the public landing page at [abstract] level.",
+      "user_action": "If a VPN/institution grants it: put IEEE_API_KEY in the connectors .env. The VPN itself is NOT the agent's business — the agent never sees the key and never drives the VPN; it calls a script that succeeds or fails.",
+      "access_ceiling": "partial",
+      "access_ceiling_note": "Key alone buys metadata + abstracts. [full] needs the subscription behind it — the probe must report which of the two is actually live, because the failure is silent otherwise.",
+      "secrets": {"env_file": "<proposed connectors/.env>", "vars": ["IEEE_API_KEY"], "agent_may_read": false},
+      "cost": {"metered": true, "meter": "per-key daily call cap", "search_trail_label": "IEEE Xplore API (keyed)"}
+    },
+
+    {
+      "id": "institutional_vpn",
+      "status": "planned",
+      "source_class": "access_upgrade",
+      "answers": "A campus client VPN (a university's or similar) that puts this machine inside an institution's licensed IP range, so subscribed publishers serve full text.",
+      "why_it_is_not_like_anything_else_here": "AMBIENT, NOT SCOPED. Every other entry is per-channel: a key affects one connector and nothing else. A VPN changes the network identity of EVERY call this machine makes — WebSearch, WebFetch, citecheck's Crossref and PubMed lookups, PatentsGrabber's OPS calls — all of them become institutionally attributable traffic while it is up. That breaks the premise the whole connector layer rests on (per-connector scope, per-connector consent), which is why it gets its own entry and its own rules rather than being folded into institutional_proxy.",
+      "who_operates_it": "THE USER, always. Logging into a client VPN means entering credentials, which the agent must never do. The agent also never ASKS for it to be switched on mid-task: that exports a decision to the user for the agent's convenience, and makes the machine's network identity depend on what the agent happens to be doing.",
+      "assume_off": "Never assume it is up, and do not fingerprint the connection to find out. State is known only because the user said so, or because a probe against a specific target reports entitlement. An unstated assumption here silently changes what every other channel is doing.",
+      "use_only_when_all_hold": [
+        "the item is ALREADY IDENTIFIED — a specific DOI or paper the P1 target list named — never exploratory browsing",
+        "an extraction target genuinely needs full text that is otherwise [abstract]",
+        "the user is actually entitled to it through the institution",
+        "it is a small number of documents in this run"
+      ],
+      "never": [
+        "systematic or bulk downloading — this is the clause institutional licences actually forbid, and the account it costs is the USER's, not the agent's",
+        "crawling, or fetching 'while we are in there anyway'",
+        "anything that would have worked without it"
+      ],
+      "window_hygiene": "The non-obvious one. While the VPN is up, calls with nothing to do with the entitlement also ride it: resolving 40 DOIs against Crossref appears to Crossref as institutional traffic. Not harmful, but not what the user consented to when they connected for one paper. So do discovery and identifier resolution OUTSIDE the window, and keep the window narrow: connect, fetch the named documents, disconnect.",
+      "volume_gate": "More than ~5 documents through it in one run: stop and ask. Not because 6 is dangerous, but because the shape of a run that wants 20 is a bulk download wearing a different name.",
+      "access_ceiling": "full",
+      "secrets": {"env_file": null, "note": "No credential the agent can hold. The VPN login is the user's; the agent never sees it and never drives the client."},
+      "cost": {"metered": true, "meter": "documents fetched inside the window, counted and reported", "search_trail_label": "institutional VPN window (N documents; discovery and resolution done outside it)"},
+      "terms": {"boundary": "Publisher licence terms bind the DELIVERABLE too: content obtained under an institutional licence is for the user's own research use and must not be redistributed. Flag it in anything the user might publish, same as the EPO OPS 3.2 rule."}
+    },
+
+    {
+      "id": "institutional_proxy",
+      "status": "needs_user",
+      "source_class": "access_upgrade",
+      "answers": "Turns paywalled Elsevier / Springer / Wiley / Optica items from [abstract] into [full] — the largest single quality jump available to this skill.",
+      "blocked_on": "Needs a live authenticated session (EZproxy / Shibboleth). A session cookie is a credential AND a personal identity: it must live in a .env-class file behind a fetch script, never in a chat window, and it expires.",
+      "user_action": "Decide whether this is acceptable at all. It carries a real risk the other entries do not: bulk automated fetching through an institutional proxy gets accounts suspended. If yes, the safe shape is a fetch-ONE-document CLI with a hard rate cap, not a general proxy.",
+      "access_ceiling": "full",
+      "secrets": {"env_file": "<proposed>", "vars": ["PROXY_SESSION"], "agent_may_read": false},
+      "cost": {"metered": true, "meter": "documents/day, self-imposed", "search_trail_label": "institutional proxy (session spent)"},
+      "terms": {"boundary": "One document at a time, for a target the extraction plan already named. Never a crawl."}
+    },
+
+    {
+      "id": "arxiv",
+      "status": "live",
+      "registered": "2026-08-27",
+      "source_class": "preprints",
+      "answers": "Physics/math/CS preprints — discovery, identifier resolution, and the published-version check. The single most useful channel for this user's fields.",
+      "premise_correction": "Registered after CORRECTING the premise that prompted it. The user said their email is registered with arXiv, implying that unlocks something. Verified 2026-08-27 against arXiv's own Terms of Use for APIs: the API requires NO account and NO key, and never has. An arXiv account unlocks nothing here.",
+      "what_the_contact_actually_buys": "Two real things, neither of which is access. (1) A contact-bearing User-Agent is the politeness convention; arXiv has been returning repeated 429s since ~2026-02-25 even to clients that pace themselves, and an identified client is the one that can be un-blocked rather than guessed at. (2) Identification is the channel for REQUESTING a higher rate, which arXiv's ToU explicitly invites — that request needs a real contact.",
+      "access_ceiling": "full",
+      "invoke": {
+        "kind": "http_public",
+        "base_url": "https://export.arxiv.org/api/query",
+        "resolve": "https://arxiv.org/abs/<id>",
+        "pacing": "1 request per 3 seconds, ONE connection at a time (arXiv ToU, verified 2026-08-27). Never parallelise; never retry-loop a 429 — back off once, retry once, then degrade per the ladder.",
+        "contact_header": "User-Agent carries mailto:<user's address> for arxiv.org and export.arxiv.org ONLY — see verify/citecheck.py CONTACT_BY_HOST"
+      },
+      "secrets": {
+        "env_file": null,
+        "note": "No credential. The user's EMAIL is the identifier, and consent for it is per-service: approved for arXiv 2026-08-27, explicitly NOT for Crossref's polite pool or Unpaywall, both declined the same day. A single shared User-Agent would have silently overridden that, which is why the contact is host-scoped in code rather than global."
+      },
+      "known_limits": "WebFetch sends its own User-Agent, so the polite contact applies only to this skill's own scripts. Queries made through WebFetch are anonymous to arXiv and carry the ordinary 429 risk.",
+      "cost": {"metered": false, "search_trail_label": "arXiv export API (identified, 1 req/3s)"}
+    },
+
+    {
+      "id": "semantic_scholar",
+      "status": "available",
+      "source_class": "scholarly_index",
+      "answers": "Citation graph, citation contexts, backward/forward chasing — the cheapest programmatic chasing channel.",
+      "note": "Works keyless TODAY via WebFetch, so this is not blocking. A free key buys a GUARANTEED 1 req/s instead of a contended shared pool (verified 2026-08-26 from the official tutorial). Worth having, not worth waiting for.",
+      "access_ceiling": "abstract",
+      "secrets": {"env_file": "<proposed>", "vars": ["S2_API_KEY"], "agent_may_read": false},
+      "cost": {"metered": true, "meter": "1 req/s keyed; unkeyed pool is shared and throttled under load", "search_trail_label": "Semantic Scholar (keyed | shared pool)"}
+    },
+
+    {
+      "id": "local_pdf_library",
+      "status": "live",
+      "registered": "2026-08-27",
+      "source_class": "local_corpus",
+      "answers": "[full] extraction from papers the user already owns, with no network and no paywall. The ONLY live local_corpus connector since prism retired.",
+      "why_this_root": "The user's Zotero attachment store, chosen over the other PDF concentrations on this machine after inventory (2026-08-27): Downloads mixes personal documents (admissions, registration) and is not a paper library; the retired project's demo folders hold synthetic corpora; the lyrics and work-document folders are not literature. Zotero storage is 155 attachments of actual read papers, and its filenames already carry author/year/title.",
+      "invoke": {
+        "kind": "local_files",
+        "root": "${HOME}/Zotero/storage",
+        "index_tool": "pdf_index.py",
+        "build": "python pdf_index.py --build",
+        "search": "python pdf_index.py --search <terms>",
+        "stats": "python pdf_index.py --stats"
+      },
+      "access_ceiling": "full",
+      "access_ceiling_note": "Reading a PDF here is genuinely [full]. But the INDEX is filename-derived metadata, not a citation: resolve the identifier (P2) before anything from it reaches a deliverable, and run the P4.5 support-span check as usual.",
+      "known_limits": "No DOIs, no journal names, no abstracts — the index knows only what a filename says. zotero.sqlite next to the root holds the real metadata and is the named upgrade path (see zotero_local).",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "local PDF library (Zotero storage, N of 155 indexed; collection-bias stats from pdf_index.py --stats)"}
+    },
+
+    {
+      "id": "textbook_library",
+      "status": "live",
+      "registered": "2026-09-13",
+      "source_class": "textbooks",
+      "answers": "[full] extraction of definitions, canonical formulations, typical ranges and field vocabulary from the user's own textbook shelf (the textbook root, 32 books / 18,945 PDF pages measured 2026-09-13 by textbook_index.py --stats), including 6 scanned books through an OCR sidecar with per-page exclusion.",
+      "why_this_root": "The textbook root is the user's raw reference-book store (user ruling 2026-09-13: raw shelf here, Obsidian is only the reader; organised knowledge goes to the vault under its own rules). Subject folders carry a hand-written README of reading situations.",
+      "invoke": {
+        "kind": "local_files",
+        "root": "${TEXTBOOKS}",
+        "index_tool": "textbook_index.py",
+        "ocr_tool": "textbook_ocr.py",
+        "build": "python textbook_index.py --build",
+        "search": "python textbook_index.py --search <terms>",
+        "fulltext": "python local_find.py \"<regex>\" [--in textbooks|literature] [--book <sub>]  (running text of chapter exports + NOTES_VAULT/literature, printed-page locator with calibration flags)",
+        "locate": "python textbook_index.py --locate <book> --printed <n>",
+        "export": "python textbook_index.py --export <book>",
+        "stats": "python textbook_index.py --stats",
+        "ocr_report": "python textbook_ocr.py --report <textbook root>",
+        "rules": "references/textbook-extraction.md"
+      },
+      "access_ceiling": "full",
+      "access_ceiling_note": "[full] for a text-layer page or an OCR page with status ok; [partial] for an OCR 'sparse' page (figure/blank); an OCR-EXCLUDED page (skew/garbage/error) is not accessible at all — it is a gaps entry, never a guess (user ruling 2026-09-13). OCR text proves words, not equations: re-read formulas from the page image before a ledger row.",
+      "known_limits": "Identity (ISBN/edition/year) is only what the file states — empty means not found, never filled from memory. Printed-page calibration is a fitted offset with an agreement share; 'unreliable' books need the page header read by hand. The glossary parser is a line-shape heuristic (parse_share per book). No DOIs; a book is cited by edition + section + printed page per references/textbook-extraction.md §3.",
+      "terms_boundary": "Provenance field states book + edition + place only (user ruling 2026-09-13, Q1). Quotes short, pages never reproduced; chapter exports are the user's private study copies and never leave the machine inside a deliverable (rules/literature-access.md redistribution limit).",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "textbook library (textbook root, N of 32 books opened; OCR-excluded pages named)"}
+    },
+
+    {
+      "id": "zotero_local",
+      "status": "live",
+      "registered": "2026-08-27",
+      "source_class": "local_corpus",
+      "answers": "Real bibliographic metadata for the SAME files local_pdf_library indexes: DOI, journal, full author list, abstract, dates, pages. The citation fields a filename cannot carry.",
+      "why_it_matters_here": "local_pdf_library can say a paper IS in the library but not what its DOI is, so every local hit still cost an identifier-resolution round-trip. Measured 2026-08-27 via `python zotero_local.py --stats`: 157 items, 126 with a DOI (80%), 99 with an abstract, 114 with a PDF on disk. Those hits now start from a real identifier instead of a guess from a filename.",
+      "invoke": {
+        "kind": "local_sqlite",
+        "db": "${HOME}/Zotero/zotero.sqlite",
+        "storage": "${HOME}/Zotero/storage",
+        "tool": "zotero_local.py",
+        "search": "python zotero_local.py --search <terms>",
+        "resolve": "python zotero_local.py --resolve <ITEMKEY>",
+        "stats": "python zotero_local.py --stats",
+        "annotations": "python zotero_local.py --annotations <KEY> [--json] [--tool-author NAME]",
+        "annotation_tool_authors": [],
+        "annotation_tool_authors_note": "Author names a pre-annotating tool writes its marks under (user ruling R4, 2026-09-14: an AI-assisted library is expected). Empty until such a tool exists; until declared, its signed marks read as named, never as owner.",
+        "read_pattern": "COPY THEN READ. Zotero holds a write lock while running and a reader that hits a mid-write page gets a corrupt answer rather than an error. The tool copies the file and opens the copy read-only, so it works whether or not the app is open — which is also why it does not use the local HTTP API on 127.0.0.1:23119, since that needs the app running."
+      },
+      "access_ceiling": "full",
+      "access_ceiling_note": "[full] only for items with a PDF actually on disk; an item with perfect metadata and no attachment caps at [abstract]. `--stats` prints both counts, and the shortfall belongs in gaps.",
+      "known_limits": "NOT a citation authority — the fields are whatever the import put there, so a wrong DOI in Zotero is wrong here too. This removes the LOOKUP, not the VERIFICATION: load-bearing items still go through P2 identifier resolution and the P4.5 support-span check. Items without a DOI (measured 2026-08-27: 31 of 157) still need full resolution, and 43 of 157 have no PDF on disk so they cap at [abstract] however complete the metadata looks.",
+      "relation_to_local_pdf_library": "Same files, two views, joined on the Zotero item key (`item_key` in pdf-index.json, `--resolve <KEY>` here). Use pdf_index for fast filename search over what is on disk; use this when the hit needs to become a citation.",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "Zotero library (local sqlite, read-only; N of M items carry a DOI)"}
+    },
+
+    {
+      "id": "standards_bodies",
+      "status": "needs_user",
+      "source_class": "standards",
+      "answers": "IEEE / ISO / IEC / SEMI / JEDEC standards — named in SKILL.md source_types but unreachable through every channel the skill has.",
+      "blocked_on": "Standards are sold per document. There is no free channel and no legal scraping route; the honest current answer to 'what does IEC 62368 say' is 'not in searched sources'.",
+      "user_action": "If purchased PDFs exist, point local_pdf_library at them — that is the whole solution. Otherwise this stays an honest permanent gap and source_types should stop implying otherwise.",
+      "access_ceiling": "full",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "standards PDFs (<path>)"}
+    },
+
+    {
+      "id": "reference_data_compilations",
+      "status": "available",
+      "registered": "2026-09-03",
+      "source_class": "data_compilation",
+      "answers": "Material constants and thermophysical data — the actual home of 'what is the literature value of X' in physical science, more often than a paper is. NIST Chemistry WebBook and Standard Reference Data, refractiveindex.info, CRC Handbook, Palik Handbook of Optical Constants.",
+      "why_registered": "Absent from this registry until 2026-09-03, so a handbook question could only return 'not found in searched sources'. eval 3 (Johnson & Christy thermal conductivity) is the worked case: the skill correctly said the value was not in that paper, and had no vocabulary for saying where it does live.",
+      "invoke": {"kind": "landing_page", "note": "No API. Landing-page channel like a publisher page — WebFetch the entry; ladder rung 3b if it will not render."},
+      "access_ceiling": "full",
+      "access_ceiling_note": "[full] for the compilation entry itself. But the CITATION is the primary source the entry names, not the compilation — see credibility-rubric.md §5b (Tier R) cite-through rule. An entry that names no primary source yields a [secondary] value.",
+      "known_limits": "Compilations normalise units, revise between editions, and sometimes interpolate or re-fit. Record edition/version, retrieval date, and whether the row is measured or interpolated; an interpolated row is the compiler's [synthesis], not a measurement.",
+      "verified": "2026-09-03 (class registered; per-site endpoint behaviour is first-use-verify — no API is claimed)",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "reference data compilation (<name>, retrieved <date>)"}
+    },
+
+    {
+      "id": "agency_reports",
+      "status": "available",
+      "registered": "2026-09-03",
+      "source_class": "reports",
+      "answers": "Government/agency technical reports — free full text, and heavily relevant to this owner's applied photonics and semiconductor domains. NASA NTRS and DOE OSTI.",
+      "invoke": {
+        "kind": "http_public",
+        "ntrs": "root https://ntrs.nasa.gov/api ; POST /citations/search ; /citations/{id} ; /citations/{id}/downloads ; page is 1-based, page_size 1-100. No key seen.",
+        "osti": "docs https://www.osti.gov/api/v1/docs ; records https://www.osti.gov/api/v1/records . No API key or auth mentioned for search; records carry a links array where rel=fulltext gives the document URL. Covers reports, journal articles, data, software, patents, conference papers.",
+        "pacing": "Neither service documents a rate limit. Apply the standing rule regardless: do not loop fetches, back off once, retry once, then degrade."
+      },
+      "access_ceiling": "full",
+      "verified": "OSTI verified 2026-09-03 by fetching the docs page itself. NTRS verified 2026-09-03 by search — NASA's own OpenAPI PDF is dated 2021-04-26, so treat NTRS parameter details as first-use-verify.",
+      "known_limits": "Peer-review status varies. Agency reports are usually internally reviewed, not journal peer reviewed -> credibility-rubric.md Tier C unless the report states otherwise.",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "NTRS | OSTI (keyless)"}
+    },
+
+    {
+      "id": "theses_repositories",
+      "status": "available",
+      "registered": "2026-09-03",
+      "source_class": "theses",
+      "answers": "Master's and doctoral theses — frequently the only reproducible description of a method whose paper Methods section is terse. credibility-rubric.md Tier C already named theses; there was no channel until now.",
+      "invoke": {
+        "kind": "landing_page",
+        "taiwan": "https://ndltd.ncl.edu.tw — National Central Library, Open Access basis. Bibliographic + abstract search free, no account. Full text ONLY where the author authorised it, and downloading an authorised thesis needs member registration.",
+        "elsewhere": "The institutional repository is usually the free full text; reach it via OpenAlex/Semantic Scholar or a site-scoped WebSearch on the university domain. ProQuest Dissertations is paywalled — landing-page channel like IEEE Xplore."
+      },
+      "access_ceiling": "abstract",
+      "access_ceiling_note": "Deliberately capped at [abstract]: on NDLTD the default is metadata+abstract, and [full] requires an actually-retrieved authorised PDF. Raise per item, never per channel.",
+      "verified": "2026-09-03",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "NDLTD Taiwan | institutional repository"}
+    },
+
+    {
+      "id": "zenodo",
+      "status": "available",
+      "registered": "2026-09-03",
+      "source_class": "datasets_software",
+      "answers": "Deposited datasets and research software, including figure source data. Increasingly where a paper's actual numbers live rather than in its tables.",
+      "invoke": {
+        "kind": "http_public",
+        "base_url": "https://zenodo.org/api/records",
+        "auth": "Reading works with no token. A token raises the limit from 60 to 100 requests/hour and is passed as an Authorization: Bearer header, NOT as a URL parameter.",
+        "pacing": "No token is registered for this skill, so 60 requests/hour is the operating ceiling."
+      },
+      "access_ceiling": "full",
+      "verified": "2026-09-03",
+      "extraction_rule": "A dataset has its own DOI: cite the DEPOSIT, with file plus column/field as the locator, and note which paper it belongs to. Do not cite the paper for a number taken from its deposited data.",
+      "siblings": "Figshare (same shape); Software Heritage for code that outlived its repository.",
+      "secrets": {"env_file": null, "vars": ["ZENODO_TOKEN"], "agent_may_read": false},
+      "cost": {"metered": true, "meter": "60 req/hour keyless, 100 keyed", "search_trail_label": "Zenodo (keyless, 60/hr)"}
+    },
+
+    {
+      "id": "airiti_library",
+      "status": "needs_user",
+      "registered": "2026-09-03",
+      "source_class": "regional_index",
+      "answers": "華藝 airitiLibrary — Taiwanese journals and theses, the main Chinese-language channel for this owner's regional literature.",
+      "blocked_on": "Institutional access only; external users need their institution's VPN. Without it this is metadata-and-abstract at best.",
+      "user_action": "Say whether institutional access is available and how it is reached. Until then the shortfall is a gaps entry on any Chinese-language topic, per the rubric §6 language-skew rule.",
+      "access_ceiling": "abstract",
+      "verified": "2026-09-03",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "airitiLibrary (no institutional access — abstract only)"}
+    },
+
+    {
+      "id": "publish_or_perish",
+      "status": "needs_user",
+      "registered": "2026-09-14",
+      "source_class": "scholar_export",
+      "answers": "Google Scholar breadth — theses, books, grey literature, citation counts for venues the APIs do not index — as an exported list (CSV, RIS, BibTeX, JSON; abstracts included) from Harzing's Publish or Perish desktop app, run by the user.",
+      "why_it_matters_here": "Google Scholar has no API and blocks automated access, so until now it was only an unreliable WebSearch sanity check. PoP makes it a hand-to-user channel with a machine-readable return.",
+      "blocked_on": "The app runs on the user's machine (free; Windows and macOS) and the query is the user's act — this skill never automates it.",
+      "user_action": "Install Publish or Perish once, when a run first needs Scholar breadth; then run the query pack's PoP variant (output-templates.md §Query pack) and save the export into the run folder's user_provided/.",
+      "access_ceiling": "abstract",
+      "access_ceiling_note": "Metadata and abstracts only. Every exported row is user_provided metadata and still goes through P2 identifier resolution before it is cited — Scholar records are scraped and noisy.",
+      "verified": "2026-09-14",
+      "secrets": {"env_file": null},
+      "cost": {"metered": false, "search_trail_label": "Google Scholar via Publish or Perish (user-run export)"}
+    },
+
+    {
+      "id": "core",
+      "status": "declined",
+      "declined_on": "2026-09-14",
+      "declined_note": "User ruling R2 in the researcher.tw borrow review (outputs/researcher-tw-borrow-review-2026-09-14.md): not wanted. The known cost is a free API key that needs an account. Do not re-offer it each session; re-raise only if an open-access full-text gap recurs that CORE alone would close.",
+      "source_class": "oa_aggregator",
+      "answers": "CORE — aggregated open-access full texts from institutional and subject repositories (API v3).",
+      "blocked_on": "A free API key, which requires registering an account.",
+      "access_ceiling": "full",
+      "secrets": {"env_file": null},
+      "cost": {"metered": true, "search_trail_label": "CORE (declined 2026-09-14)"}
+    }
+  ]
+}
