@@ -1,0 +1,25 @@
+# fresh clone of main at 67d3934, 2026-11-07, run: python -X utf8 verify/run_controls.py <scratch>
+env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
+K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
+K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
+K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
+K1d  connectors/zotero_local.py --selftest : exit 0, 'NOTE: this calibrates citation SHAPING and mark PROVENANCE on a fixture. Reading the real database is exercise' -> ok
+K1e  loop/idkey.py --selftest : exit 0, '17 cases (12 must-parse / 4 must-unresolve / 1 must-differ), 0 broken' -> ok
+K1f  loop/inbox.py --selftest : exit 0, 'selftest: PASS' -> ok
+K1g  loop/reflux.py --selftest : exit 0, '5 cases (2 must-reject / 3 must-accept), 0 broken — calibrated' -> ok
+K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
+K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
+K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
+K1k  verify/citecheck.py --selftest --offline: exit 0, '101 cases (53 must-pass / 48 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
+K2   loop/tests pytest: exit 0, 52 passed in 1.40s -> ok
+K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
+K4   test_secret_file_guard.py: exit 0, 'must-deny: 50   must-pass: 53   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
+K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
+K6   literature_host_guard WebFetch: arxiv.org allow (silent) vs ieeexplore deny -> ok
+K7   profile-lint FAIL/WARN: shipped (0, 0) vs routing-collision (2, 6) (want (2, 6)) vs frontmatter-drift (2, 0) (want (2, 0)) -> ok
+K8   eval-impact cases selected: method-selection.md 3 (cases 2, 3, 5) vs deliverables.md 0 -> ok
+K9   profile-lint after adding a row: no file 1 FAIL (closure True) vs unfilled template 11 FAIL (closure False) -> ok
+UNDT connectors/local_find.py --selftest: exit 2, 'UNDETERMINED: no textbook library on this machine' (needs a textbook library; not counted)
+UNDT connectors/textbook_ocr.py --selftest: exit 1, 'selftest: no text-layer PDF found under None' (needs a textbook library; not counted)
+
+19/19 controls ok, 2 undetermined (not counted)
