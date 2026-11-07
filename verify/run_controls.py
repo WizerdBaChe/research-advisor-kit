@@ -6,7 +6,7 @@ Usage (from the repo root):  python -X utf8 verify/run_controls.py <new-scratch-
 deleted. Each two-sided control prints BOTH asserted values (shipped vs mutant). Offline: no control
 touches the network (citecheck runs with --offline stub resolvers; the hook is fed a payload on stdin).
 Evidence rung: 0 (example controls, each two-sided with both asserted values printed).
-Needs: Python 3.11+ (tomllib), pytest, idutils, jsonschema (verify/requirements.txt). Optional: PyMuPDF —
+Needs: Python 3.12+ (tested on 3.12.7), pytest, idutils, jsonschema (verify/requirements.txt). Optional: PyMuPDF —
 without it K1k still runs and its tally line says the page-pointer (PDF) cases were skipped; Zotero.
 Isolation: every control reads the REPO's files, never an installed ~/.claude (CLAUDE_CONFIG_DIR points at an
 empty folder in the scratch dir, LSE_HOST_POLICY at the shipped policy file). A machine that already has the
@@ -106,8 +106,9 @@ def main() -> int:
         report(cid, ok, f"{rel} --selftest {' '.join(extra)}: exit {rc}, '{last(out, want) if ok else last(out, '.')}'")
 
     # K2 unit suites
+    PASSED_RE = r"\d+ (passed|failed)"  # outside the f-string: a backslash there is a SyntaxError before 3.12
     rc, out = run(["-m", "pytest", "-q", "-p", "no:cacheprovider", str(LSE / "loop" / "tests")], cwd=RI)
-    report("K2", rc == 0, f"loop/tests pytest: exit {rc}, {last(out, r'\d+ (passed|failed)').strip('= ')}")
+    report("K2", rc == 0, f"loop/tests pytest: exit {rc}, {last(out, PASSED_RE).strip('= ')}")
     rc, out = run(["-I", str(RI / "hooks" / "tests" / "test_literature_host_guard.py")])
     report("K3", rc == 0 and "ALL TESTS PASSED" in out, f"test_literature_host_guard.py: exit {rc}, '{last(out, '.')}'")
     rc, out = run(["-I", str(RI / "tools" / "secret-guard-test" / "test_secret_file_guard.py")])
