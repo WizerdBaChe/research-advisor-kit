@@ -16,7 +16,8 @@ Fixes found by four outside agents' reviews of v1.0.1 (one ran the controls on m
   skipped and the tally line says so (before, K1k crashed on `import fitz`).
 - `verify/citecheck.py --json` keeps stdout pure JSON (diagnostics go to stderr), so `--json > citecheck.json`
   parses; a ledger with a UTF-8 BOM (PowerShell) no longer makes row 1 unreadable. Selftest: 107 cases, 53/54.
-- `verify/fetchsrc.py` never opens a redirect hop whose scheme is not http or https (`file:`, `data:`).
+- `verify/fetchsrc.py` never opens a url whose scheme is not http or https (`file:`, `data:`), neither the
+  first one nor a redirect hop; `loop/runs.py check` reads a BOM ledger like citecheck does.
 - Python 3.12 or newer is stated (only 3.12.7 was run); three f-strings that 3.11 cannot parse are rewritten.
 - `loop/runs.py register` refuses a run whose `citecheck.json` carries a FAIL (before, only the later
   `check` V8 reported it, after the run was already marked delivered).

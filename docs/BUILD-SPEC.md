@@ -135,7 +135,7 @@ Machine tolerance: Python 3.12 or newer (tested on 3.12.7; 3.11 not tested), pyt
 | K1i | `verify/fetchsrc.py --selftest` | exit 0, "0 broken - calibrated" | refused host, challenge, per-host cap (inside, stub transport) |
 | K1j | `verify/staleclaim.py --selftest` | exit 0, "8 cases (5 must-pass / 3 must-fail), 0 broken" | the 3 must-fail cases (inside) |
 | K1k | `verify/citecheck.py --selftest --offline` | exit 0, "107 cases (53 must-pass / 54 must-fail), 0 broken" (without PyMuPDF: 87 cases and "[page-pointer cases skipped: no PyMuPDF]") | the 54 must-fail cases (inside) |
-| K2 | `pytest loop/tests` | exit 0, "53 passed" | (assertions inside, incl. register refusing a FAIL citecheck.json) |
+| K2 | `pytest loop/tests` | exit 0, "54 passed" | (assertions inside, incl. register refusing a FAIL citecheck.json) |
 | K3 | `hooks/tests/test_literature_host_guard.py` | exit 0 and "ALL TESTS PASSED" | the D-* deny cases (inside) |
 | K4 | `tools/secret-guard-test/test_secret_file_guard.py` | exit 0 and "failures: 0"; must-deny 50, must-pass 53 | the 50 must-deny shapes; 3 undetermined and 3 unclassifiable-shape (fail-open) are reported, not counted |
 | K5 | citecheck support check on `good-run` | support verdict `OK` (span found verbatim) | the same row with "22 um" changed to "48 um" in span and "= 22 μm" to "= 48 μm" in claim: support verdict `FAIL` |

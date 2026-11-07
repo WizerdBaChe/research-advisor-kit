@@ -30,7 +30,7 @@ v1.0.2 的紀錄另以空的假家目錄重跑一次，結果相同（19/19）�
 | K1i | `fetchsrc.py --selftest`：0 broken，calibrated | 內含（被拒主機、挑戰頁、每主機上限，皆為 stub 傳輸） |
 | K1j | `staleclaim.py --selftest`：8 cases（5 must-pass / 3 must-fail），0 broken | 內含 |
 | K1k | `citecheck.py --selftest --offline`：107 cases（53 must-pass / 54 must-fail），0 broken | 內含（v1.0.2 新增 6 例：全空白 span、壞掉的帳本列、空帳本、缺 run.json、`--json` 輸出是純 JSON、帶 BOM 的帳本；各在舊版會失敗） |
-| K2 | `loop/tests` pytest：53 passed | 內含（v1.0.2 新增：citecheck.json 有 FAIL 時 register 必須拒絕） |
+| K2 | `loop/tests` pytest：54 passed | 內含（v1.0.2 新增：citecheck.json 有 FAIL 時 register 必須拒絕；帶 BOM 的帳本不算壞列） |
 | K3 | `test_literature_host_guard.py`：ALL TESTS PASSED | 內含（D-* 拒絕案例） |
 | K4 | `test_secret_file_guard.py`：must-deny 50、must-pass 53，failures 0（另有 3 個 undetermined、3 個 unclassifiable shape 走 fail-open，皆不計入） | 內含 |
 | K5 | citecheck 支撐檢查：原 span **OK** | span 的 22 um 與主張的「= 22 μm」都改成 48：**FAIL** |
@@ -84,7 +84,7 @@ K5 與 K1k 都用 `--offline`：識別碼解析（Crossref / Semantic Scholar）
 | 「`[abstract]` 只能抽取摘要有的內容」 | 流程規則 | literature `SKILL.md`「P3」 |
 | 文字來源 provenance：文字不是 `fetchsrc.py` 產生，或取回後被改過 | 程式強制（FAIL；run 建於 2026-09-12 之前只 WARN） | `citecheck.py:759`、`:796`（sha256 與 manifest 不符） |
 | 主機存取政策：`agent_banned` / `institutional_only` 不給任何表面 | 程式強制（hook deny、fetchsrc 拒絕、citecheck FAIL） | `hooks/literature_host_guard.py:223`（judge）、`:232`、`:479`；`connectors/access_policy.py:146`；`verify/fetchsrc.py:318`；`citecheck.py:823` |
-| 轉址：每一跳在送出前先判協定與禁用主機（例：doi.org 轉到被禁的出版商，那一跳不會送出；`file:`、`data:` 跳不會開） | 程式強制（`fetchsrc.py` 自己跟轉址，最多 5 跳；v1.0.2 前由 urllib 自動跟，請求送出後才判主機、只丟棄內容）。只判「禁用」：每 run 上限與未列名主機數量只算在最後落地的主機，中途主機不計數 | `verify/fetchsrc.py:186`、`:205`（協定）、`:209`（禁用主機） |
+| 轉址：每一跳在送出前先判協定與禁用主機（例：doi.org 轉到被禁的出版商，那一跳不會送出；`file:`、`data:` 跳不會開） | 程式強制（`fetchsrc.py` 自己跟轉址，最多 5 跳；v1.0.2 前由 urllib 自動跟，請求送出後才判主機、只丟棄內容）。只判「禁用」：每 run 上限與未列名主機數量只算在最後落地的主機，中途主機不計數 | `verify/fetchsrc.py:186`、`:194`（協定，第一個網址與每一跳都判）、`:209`（禁用主機） |
 | 瀏覽器表面不在 `agent_surfaces` 內就拒絕；未量測的訂閱出版商不給瀏覽器 | 程式強制（hook deny） | `literature_host_guard.py:227`（未量測出版商）、`:235`（表面不在清單） |
 | 挑戰頁交給使用者，不換 User-Agent / 瀏覽器 / profile 重試 | 部分程式強制：`fetchsrc.py` 遇挑戰標記只打一次、記入 manifest、印 `HAND-TO-USER:`、exit 3；agent 自己用別的工具重試，只有在該主機本來就被政策拒絕時才會被 hook 擋 | `verify/fetchsrc.py:75`、`:163`、`:300`、`:344` |
 | 每主機 / 每 run 上限（`max_per_run`、三個未列名主機上限） | 程式強制（`fetchsrc.py` 與 `access_policy.py` 拒絕；腳本呼叫共用同一計數） | `access_policy.py:155`、`:159`；`fetchsrc.py:318`、`:330` |
