@@ -171,7 +171,7 @@ python -X utf8 verify/run_controls.py <新的空資料夾>
 - hook 只看得到工具呼叫的參數：一支自己寫的腳本若在 hook 看不到的地方抓取，只會被 `fetchsrc.py` / `access_policy.py --record` 計次（如果有用它們）。
 - `textbook_ocr.py --selftest` 在沒有教科書庫的機器上回傳 exit 1，而不是像 `local_find.py` 回報「無法判定」（原環境既有行為，驗收時列為 UNDT）。
 - 只在 Windows 11 實測；macOS / Linux 未跑過驗收。
-- `literature-host-policy.json` 中 IEEE Xplore 那列的依據引文在原環境就被截斷（斷在 "through an entitled se"）；政策檔是使用者自己維護的檔案，公開版原樣保留，不代改。
+- `literature-host-policy.json` 中 IEEE Xplore 那列（以及 `references/search-sources.md` 第 155 行附近的同一段）的依據引文在原環境就被截斷（斷在 "through an entitled se"）；政策檔是使用者自己維護的檔案，公開版原樣保留，不代改。
 - 拒絕訊息指向的誤判回報工具 `tools/hook-deny-lint/report_fp.py` 沒有隨附；要回報誤判，自己記一行到 hook 的 telemetry 即可。
 - `rules/literature-access.md` 說次數上限「刻意不放在 hook 裡」，但目前的 hook 已對 `max_per_run` ≤ 2 的主機做單一 session 計次，並對未登記的抓取腳本發提醒；規則文字落後於 hook（原環境既有）。
 - hook 會擋下「指令文字裡只是出現」禁止主機網址的 Bash 呼叫（例如把網址當測試字串），這是原環境既有的誤判；驗收腳本用字串拼接避開。

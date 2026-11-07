@@ -164,7 +164,7 @@ flowchart LR
 - **No domain knowledge:** the domain list is empty and the advisor answers from the generic framework; domain depth means writing your own profile.
 - **No paywall workarounds:** a source the policy bans or an anti-bot page answers is always recorded as "not retrieved, handed to the user". The policy's host list was checked at one point in time; publisher terms change.
 - **Tested only on Windows 11 + Python 3.12** (3.11 or newer required); the local textbook library and the Zotero connector need your own data, and in a clean environment the textbook tool's self-test can only report "undetermined".
-- **Two flaws in the deny message are kept as shipped:** one policy row's quoted basis was already truncated at the origin (it breaks off at "through an entitled se"); the false-positive reporter the message points to, `tools/hook-deny-lint/report_fp.py`, is not shipped. Neither changes the allow/deny verdict.
+- **Two flaws in the deny message are kept as shipped:** one policy row's quoted basis (and the same passage in `search-sources.md`) was already truncated at the origin (it breaks off at "through an entitled se"); the false-positive reporter the message points to, `tools/hook-deny-lint/report_fp.py`, is not shipped. Neither changes the allow/deny verdict.
 - More limits and the manual acceptance checklist: [`docs/DEVELOPER.md`](docs/DEVELOPER.md#限制) (Traditional Chinese).
 
 ## Author

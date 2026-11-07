@@ -53,7 +53,15 @@ content from those hosts is included in this repository.
 | pytest 9.1 | `loop/tests/` (K2) | MIT |
 | PyMuPDF 1.26 | PDF text in normal use (`fetchsrc.py`, `pagestore.py`, `citecheck.py` page pointers); no acceptance control needs it | **GNU AGPL-3.0 or Artifex commercial licence** - read it before you distribute anything built on it |
 
-This repository's MIT code imports PyMuPDF lazily inside functions (as `fitz`); it does not include or modify
-it. The kit also calls public metadata APIs (Crossref, Semantic Scholar, arXiv, NCBI) at
+| Pillow 12.3 | `connectors/textbook_ocr.py` page images for OCR (optional tool) | MIT-CMU (HPND) |
+| pypdf | `verify/fetchsrc.py` fallback PDF text when PyMuPDF is absent (guarded import, optional) | BSD-3-Clause |
+| PyYAML | `loop/tests/test_runs.py` one test (guarded import, skipped without it) | MIT |
+| Playwright + Chromium | `docs/assets/build_assets.py` only (regenerating the README images; not needed to use the kit) | Apache-2.0 (Playwright); Chromium BSD-3-Clause and others |
+
+Most call sites import PyMuPDF lazily inside functions (as `fitz`); the two textbook tools
+(`connectors/textbook_index.py`, `connectors/textbook_ocr.py`) import it at module level and require it. The
+repository does not include or modify PyMuPDF. `connectors/textbook_ocr.py` also calls the Windows
+`Windows.Media.Ocr` system API (Windows only). The README images are rendered with system fonts by family
+name (Noto Serif TC, Cascadia Mono, Consolas); no font file is shipped. The kit also calls public metadata APIs (Crossref, Semantic Scholar, arXiv, NCBI) at
 run time under their own terms; `reference-impl/hooks/literature-host-policy.json` records the basis and
 the per-host caps for each.
