@@ -1,0 +1,21 @@
+# .gitignore born classified -- copied from ~/.claude/tools/asset-protection/gitignore.template.
+
+# python caches and build output
+# class: regenerable
+__pycache__/
+*.py[cod]
+dist/
+
+# installed dependencies
+# class: third-party
+# kind: dependency-install
+node_modules/
+
+# OS and editor droppings
+# class: regenerable
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
