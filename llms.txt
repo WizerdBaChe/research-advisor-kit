@@ -1,0 +1,41 @@
+# research-advisor-kit
+
+> Two Claude Code skills that work as a pair: scientific-research-guide, a research-methodology advisor that locates the user's research stage on a 7-tier framework and recommends the next step through five gates and a six-part diagnosis, and literature-search-extract, the literature search-and-extraction service it delegates to, where every load-bearing claim goes into an evidence ledger and verify/citecheck.py checks that the quoted span is verbatim in the retrieved text and that the claim's numbers are in the span. Ships with a PreToolUse hook that enforces a publisher host-access policy (no agent retrieval from hosts whose terms ban it; an anti-bot challenge is handed to the user), an API-key read guard, and the tools for adding domain profiles (none ship). Tested on Windows 11 and Python 3.12.
+
+Start at AGENTS.md. Pin a release tag, not main. Code MIT, documentation CC BY 4.0.
+
+## Read-only route (no command execution)
+
+- [docs/EVIDENCE.md](docs/EVIDENCE.md): read first; its "Enforcement map" says which rules code enforces (with file:line) and which are process only, and "Not claimed" lists known gaps
+- [verify/controls_run.txt](verify/controls_run.txt): the recorded acceptance run; read it as the result instead of running the controls
+- [reference-impl/skills/scientific-research-guide/SKILL.md](reference-impl/skills/scientific-research-guide/SKILL.md) and [reference-impl/skills/literature-search-extract/SKILL.md](reference-impl/skills/literature-search-extract/SKILL.md): the two methods
+- [reference-impl/rules/literature-access.md](reference-impl/rules/literature-access.md) and [reference-impl/hooks/literature-host-policy.json](reference-impl/hooks/literature-host-policy.json): the access boundary
+- [AGENTS.md](AGENTS.md): its first section is facts about the repo; the rest is installation steps for an agent whose user asked for an install
+
+## Entry points
+
+- [AGENTS.md](AGENTS.md): reading order, first command, install table into ~/.claude, adaptation rules, what not to adopt
+- [docs/BUILD-SPEC.md](docs/BUILD-SPEC.md): the contract; §7 acceptance K1-K9, §8 environment adaptation (roots, env vars, hook registration), §9 declared edits
+- [docs/EVIDENCE.md](docs/EVIDENCE.md): what this release measured, origin records behind each rule, what is not claimed
+
+## Run
+
+- [verify/run_controls.py](verify/run_controls.py): `python -X utf8 verify/run_controls.py <new-empty-dir>`; two-sided controls, every line must end in `-> ok`
+- [verify/host.toml](verify/host.toml): the machine-roots file a fresh clone runs with (set HK_HOST_TOML)
+
+## Reference implementation
+
+- [reference-impl/skills/scientific-research-guide/references/](reference-impl/skills/scientific-research-guide/references/): tier framework, method selection, deliverable templates, user-supplied citation triage
+- [reference-impl/skills/scientific-research-guide/domains/](reference-impl/skills/scientific-research-guide/domains/): empty routing manifest, profile template, domain-expansion guide
+- [reference-impl/skills/scientific-research-guide/tools/](reference-impl/skills/scientific-research-guide/tools/): profile-lint, routing_sim, eval-impact, profile_frontmatter
+- [reference-impl/skills/literature-search-extract/references/](reference-impl/skills/literature-search-extract/references/): search sources, connectors, credibility rubric, extraction playbook, verification gate, feedback loop, output templates, PRISMA, portability
+- [reference-impl/skills/literature-search-extract/verify/](reference-impl/skills/literature-search-extract/verify/): citecheck, fetchsrc, pagestore, spannorm, staleclaim
+- [reference-impl/hooks/](reference-impl/hooks/): literature_host_guard, secret_file_guard, deny_receipt, _lib/roots, _lib/telemetry, tests
+
+## Optional
+
+- [docs/DEVELOPER.md](docs/DEVELOPER.md): structure tree, component and workflow diagrams, design choices, limits, manual acceptance (Traditional Chinese)
+- [README.en.md](README.en.md): English overview; [README.md](README.md): Traditional Chinese overview
+- [CHANGELOG.md](CHANGELOG.md): versions
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): third-party material and runtime dependency licences
+- [verify/unshipped_paths.txt](verify/unshipped_paths.txt): origin paths deliberately not shipped, with the reason class
