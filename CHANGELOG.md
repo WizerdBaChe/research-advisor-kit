@@ -10,7 +10,9 @@ patch = fix. Format after Keep a Changelog.
 - `docs/assets/flow.build.mjs`: the README flow diagram as a rendered reader figure (`flow.zh-TW.png`,
   `flow.en.png` and their SVGs). Every node and line maps to a SKILL.md passage (`--mapping`, copied into
   `docs/DEVELOPER.md`); model asserts for endpoints, diagonals, arrowhead run, edges through nodes or group
-  labels, crossings, parallel runs and chip placement, with six deliberately broken controls (`--selftest`).
+  labels, crossings, parallel or overlapping runs and chip placement, with seven deliberately broken controls
+  per language (`--selftest`, each control matched only by its own failure message). A papers-only request is
+  drawn with its own exit (the booklist goes to you without a stage diagnosis).
 - `docs/assets/build_assets.py --only flow`: renders the two SVGs to PNG and checks in the browser that
   every text sits inside its node, with a known-bad control.
 

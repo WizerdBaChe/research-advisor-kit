@@ -52,11 +52,10 @@ content from those hosts is included in this repository.
 | jsonschema 4.26 | `loop/runs.py` run-record validation (required by K2) | MIT |
 | pytest 9.1 | `loop/tests/` (K2) | MIT |
 | PyMuPDF 1.26 | PDF text in normal use (`fetchsrc.py`, `pagestore.py`, `citecheck.py` page pointers); no acceptance control needs it | **GNU AGPL-3.0 or Artifex commercial licence** - read it before you distribute anything built on it |
-
 | Pillow 12.3 | `connectors/textbook_ocr.py` page images for OCR (optional tool) | MIT-CMU (HPND) |
 | pypdf | `verify/fetchsrc.py` fallback PDF text when PyMuPDF is absent (guarded import, optional) | BSD-3-Clause |
 | PyYAML | `loop/tests/test_runs.py` one test (guarded import, skipped without it) | MIT |
-| Node.js 24 (runtime, not a package) | `docs/assets/flow.build.mjs` only (the README flow diagram; standard library only, no npm install) | MIT (Node.js) |
+| Node.js (runtime, not a package; tested with 24) | `docs/assets/flow.build.mjs` only (the README flow diagram; standard library only, no npm install) | MIT (Node.js) |
 | Playwright + Chromium | `docs/assets/build_assets.py` only (regenerating the README images; not needed to use the kit) | Apache-2.0 (Playwright); Chromium BSD-3-Clause and others |
 
 Most call sites import PyMuPDF lazily inside functions (as `fitz`); the two textbook tools

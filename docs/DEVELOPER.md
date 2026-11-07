@@ -117,31 +117,33 @@ README 的「運作流程」圖（`docs/assets/flow.zh-TW.png`、英文版 `flow
 | 圖上節點 | 描繪的來源（`reference-impl/skills/…`） | 省略了什麼 |
 |---|---|---|
 | 你的研究問題 | `scientific-research-guide/SKILL.md` L44（Gate A 在每一輪開頭觸發） | — |
-| 先判斷階段 | 同上 L44–110（Gate A：Step 0 領域路由、Tier 對應） | Gate B–E、`research-state.md` |
+| 先判斷階段 | 同上 L44–110（Gate A：Step 0 領域路由、Step 0.5 範圍檢查、Tier 對應） | Gate C–E、`research-state.md`（Gate B 只畫出委派文獻員這一條） |
 | 下一步與理由 | 同上 L111 六段診斷；L252 一般回合的形狀 | 文件範本（Gate D） |
 | 依需求搜尋 | `literature-search-extract/SKILL.md` L85 P1、L95 P2 | P1 與 P2 合成一個節點；召回檢查、連接器路由 |
-| 准不准讀取 | 同上 L143–161 P3；`hooks/literature_host_guard.py` ＋ `literature-host-policy.json` | 每主機與每次執行的次數上限 |
+| 准不准讀取 | 同上 L114–117 取用前先查主機存取政策、L143–161 P3 存取標記；`hooks/literature_host_guard.py` ＋ `literature-host-policy.json` | 每主機與每次執行的次數上限；圖上畫成二選一，實際可以先抽取政策允許的部分、同時把那份文件交給你 |
 | 抽取內容 | 同上 L167 P4、L171 每筆附位置 | 衝突並列、限制條件抽取 |
 | 引用查核 | 同上 L188 P4.5；`verify/citecheck.py` | 數字在原句、書目比對、撤稿、取得路徑檢查（README 文字帶到） |
 | 交付結果 | 同上 L203 P5；L73 結果契約 | AI 使用揭露、Zotero 收尾 |
-| 交給你自己開 | 同上 L160–161 hand-to-user，記進 gaps | — |
+| 交給你自己開 | 同上 L114–117 被拒或遇驗證碼的主機交給你；L160–161 記為缺口 (gaps) | — |
+| 書單直接給你 | `scientific-research-guide/SKILL.md` L83–91 Step 0.5：純找文獻的請求不跑 Tier 對應、不做六段診斷 | 顧問可以用一句話提一個方法風險，由你決定要不要聽 |
 
 | 圖上連線 | 從 → 到 | 來源 |
 |---|---|---|
 | 1 | 你的研究問題 → 先判斷階段 | `scientific-research-guide/SKILL.md` L44 |
-| 不需文獻 | 先判斷階段 → 下一步與理由 | 同上 L252 |
+| 不需文獻 | 先判斷階段 → 下一步與理由 | 同上 L252；標籤是從 L132–138 推出的（只有實質的文獻工作才委派） |
 | 2 需要文獻 | 先判斷階段 → 依需求搜尋 | 同上 L134–135 Mode 2 請求契約 |
-| 只找文獻 | 你的研究問題 → 依需求搜尋 | 同上 L85–87 純找文獻的請求不跑 Tier 對應 |
+| 只找文獻 | 你的研究問題 → 依需求搜尋 | `literature-search-extract/SKILL.md` L41–48 Mode 1 直接請求；`scientific-research-guide/SKILL.md` L83–87 純找文獻的回合直接交給文獻員 |
 | 3 | 依需求搜尋 → 准不准讀取 | `literature-search-extract/SKILL.md` L143 P3 |
 | 4 准 | 准不准讀取 → 抽取內容 | 同上 L152–160 |
-| 禁止或驗證碼 | 准不准讀取 → 交給你自己開 | 同上 L160–161；hook 拒絕 |
+| 禁止或驗證碼 | 准不准讀取 → 交給你自己開 | 同上 L114–117；hook 拒絕 |
 | 5 | 抽取內容 → 引用查核 | 同上 L188–195 先寫證據帳本再跑 citecheck |
-| 對不上（退回） | 引用查核 → 抽取內容 | `literature-search-extract/references/verification-gate.md` L182 修復順序（重讀位置、改寫或刪掉主張） |
+| 對不上：改寫或刪除（退回） | 引用查核 → 抽取內容 | `literature-search-extract/references/verification-gate.md` L182–198 修復順序（照存下的原文改寫主張；原文撐不住就刪掉，記為缺口） |
 | 6 原句在原文 | 引用查核 → 交付結果 | `literature-search-extract/SKILL.md` L203 |
 | 列為缺口 | 交給你自己開 → 交付結果 | 同上 L161 |
 | 7 交回顧問 | 交付結果 → 下一步與理由 | `scientific-research-guide/SKILL.md` L135 接收結果契約 |
+| 只找文獻 | 交付結果 → 書單直接給你 | 同上 L83–91 用階段診斷回答找書單的請求算過度觸發 |
 
-圖的檢查（`flow.build.mjs` 內）：連線起訖都在節點邊上、沒有斜線、箭頭前至少 15 px 直線、線不穿過節點或群組標題、兩條線不交叉、平行線至少相隔 20 px、數字標籤不壓節點或群組框；`--selftest` 對六種故意畫壞的模型各應報錯、對正確模型應安靜。`build_assets.py --only flow` 另在瀏覽器裡量每段文字是否落在自己的節點內，並用一個縮窄節點的壞版本確認這項檢查會報錯。
+圖的檢查（`flow.build.mjs` 內）：連線起訖都在節點邊上、沒有斜線、箭頭前至少 15 px 直線、線不穿過節點或群組標題、兩條線不交叉、平行線至少相隔 20 px、兩條線不重疊、數字標籤不壓節點或群組框；`--selftest` 對七種故意畫壞的模型各應報出自己那一類錯（每個對照只認自己的錯誤訊息）、對正確模型應安靜。`build_assets.py --only flow` 另在瀏覽器裡量每段文字是否落在自己的節點內，並用一個縮窄節點的壞版本確認這項檢查會報錯。
 
 ## 模組對照
 
@@ -200,7 +202,7 @@ python -X utf8 verify/run_controls.py <新的空資料夾>
 1. 在乾淨 clone 跑 `verify/run_controls.py`，19 行都是 `-> ok`，兩行 UNDT。
 2. 照 AGENTS.md 裝進另一台機器的 `~/.claude`，在 `settings.json` 註冊兩個 hook 後，讓 agent 用 WebFetch 讀一個 IEEE Xplore 網址：要被擋下，並看到改走哪條路的說明。
 3. 對研究顧問說「我有三組實驗數據（對照組、低劑量、高劑量），每組 n=6，該用哪個統計檢定？」：回答要先定位到分析階段，再依資料型態與前提給出檢定與理由，而不是直接丟一個名字。
-4. 對文獻員說「幫我找 X 的文獻值做成參數表」（X 換成你熟的主題）：每一列都有出處位置與存取等級，結尾有「查不到的部分」與可信度。
+4. 對文獻員說「幫我找 X 的文獻值做成參數表」（X 換成你熟的主題）：每一列都有出處位置與存取等級，結尾有缺口（查不到的部分）與可信度。
 5. 把其中一列的數字改掉後跑 `citecheck.py`：那一列要變成 FAIL。
 6. 照 `domain-expansion-guide.md` 加一個你的領域，`profile-lint.py` 跑到 0 FAIL；再問一個含該領域關鍵字的問題，顧問要說明它載入了哪個領域檔。
 
@@ -216,13 +218,14 @@ python -X utf8 verify/run_controls.py <新的空資料夾>
 python -X utf8 docs/assets/build_assets.py
 ```
 
-腳本把 `reference-impl/` 複製到暫存資料夾，實際執行 `citecheck.py`、`literature_host_guard.py`、`profile-lint.py`，把輸出貼進 `docs/assets/src/` 的頁面再截圖。需要 `playwright` 與 Chromium（`python -m playwright install chromium`）。
+腳本把 `reference-impl/` 複製到暫存資料夾，實際執行 `citecheck.py`、`literature_host_guard.py`、`profile-lint.py`，把輸出貼進 `docs/assets/src/` 的頁面再截圖。需要 `playwright` 與 Chromium（`python -m playwright install chromium`），流程圖另需 PATH 上有 Node.js（完整重產會先做流程圖）。
 
-流程圖單獨重產（需要 Node 24 以上，不需 npm 安裝）：
+流程圖單獨重產（Node.js 只用內建模組，不需 npm 安裝；測試過的是 Node.js 24）：
 
 ```text
 node docs/assets/flow.build.mjs --selftest
+node docs/assets/flow.build.mjs --selftest --lang en
 python -X utf8 docs/assets/build_assets.py --only flow
 ```
 
-第一行確認六種故意畫壞的模型都會被抓到；第二行產生 `flow.zh-TW.svg/png` 與 `flow.en.svg/png`，並做瀏覽器內的文字落點檢查。
+前兩行確認兩種語言版各自的七種故意畫壞的模型都會被抓到（`build_assets.py` 也會先跑這兩行）；第三行產生 `flow.zh-TW.svg/png` 與 `flow.en.svg/png`，並做瀏覽器內的文字落點檢查。
