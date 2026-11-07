@@ -4,8 +4,8 @@ STATUS: LIVE since 2026-09-11 (user ruling R1 the same day; entry-schema ES-1).
 
 WHY. On 2026-09-10 an institutional VPN made four paywalled publishers reachable
 in one step and the next thought was "drive a headless browser with a logged-in
-profile". `rules/literature-access.md` was written that night to say no. The the university
-Library's AI-literacy guide (2026-09-11, slide 18) states the cost of the other
+profile". `rules/literature-access.md` was written that night to say no. A university
+library's AI-literacy guide (2026-09-11, slide 18) states the cost of the other
 branch in the library's own words: a publisher's anomaly detection sees a robot
 on a licensed IP range, blocks the RANGE, and the library disables the VPN for
 everyone. The user's ruling: unless a host is explicitly released, a program does
