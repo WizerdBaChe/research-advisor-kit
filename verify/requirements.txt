@@ -1,0 +1,6 @@
+# Needed by verify/run_controls.py (Python 3.11 or newer). Versions are the ones the recorded run used.
+pytest>=9.1
+idutils>=1.7
+jsonschema>=4.26
+# Optional: PDF text and the page-pointer selftest cases (K1k skips and says so without it)
+# pymupdf>=1.26

@@ -44,3 +44,11 @@ references/lse-feedback-loop-design.md	origin-history
 references/lse-access-verification-upgrade-design.md	origin-history
 references/lse-textbook-corpus-positioning-eval_2026-09-13.md	origin-history
 references/prior-art-sweep.md	origin-history
+tools/hook-deny-lint/report_fp.py	origin-history
+tools/hook-deny-lint/exit_route.py	origin-history
+hooks/ops_health_nudge.py	origin-history
+skills/paper-story/scripts/shot.py	origin-history
+skills/paper-story/references/bridge.md	origin-history
+
+# The list above is checked at every release by the maintainer's path census against the origin tree: every path a shipped file
+# cites resolves in the repo, is listed here, or exists nowhere at the origin (a runtime output or an example name).

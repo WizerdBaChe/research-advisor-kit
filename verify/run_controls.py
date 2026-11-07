@@ -6,7 +6,11 @@ Usage (from the repo root):  python -X utf8 verify/run_controls.py <new-scratch-
 deleted. Each two-sided control prints BOTH asserted values (shipped vs mutant). Offline: no control
 touches the network (citecheck runs with --offline stub resolvers; the hook is fed a payload on stdin).
 Evidence rung: 0 (example controls, each two-sided with both asserted values printed).
-Needs: Python 3.11+ (tomllib), pytest. Optional, not needed by any control: PyMuPDF (PDF text), Zotero.
+Needs: Python 3.11+ (tomllib), pytest, idutils, jsonschema (verify/requirements.txt). Optional: PyMuPDF —
+without it K1k still runs and its tally line says the page-pointer (PDF) cases were skipped; Zotero.
+Isolation: every control reads the REPO's files, never an installed ~/.claude (CLAUDE_CONFIG_DIR points at an
+empty folder in the scratch dir, LSE_HOST_POLICY at the shipped policy file). A machine that already has the
+kit installed therefore gets the same result as a fresh one (review 2026-11-07: K1a/K6 had read ~/.claude).
 """
 from __future__ import annotations
 
@@ -31,6 +35,8 @@ RI = work / "reference-impl"
 LSE = RI / "skills" / "literature-search-extract"
 SRG = RI / "skills" / "scientific-research-guide"
 ENV = dict(os.environ, HK_HOST_TOML=str(REPO / "verify" / "host.toml"), PYTHONIOENCODING="utf-8",
+           CLAUDE_CONFIG_DIR=str(work / "empty-claude-home"),
+           LSE_HOST_POLICY=str(RI / "hooks" / "literature-host-policy.json"),
            CLAUDE_TELEMETRY_DIR=str(work / "telemetry"),
            LSE_RUN_HOME=str(work / "runs"), LSE_INBOX=str(work / "inbox"), LSE_BIB_HOME=str(work / "bib"))
 ENV.pop("LSE_ARXIV_CONTACT", None)
@@ -115,7 +121,7 @@ def main() -> int:
     _, out0 = run(cc)
     row = json.loads((run_dir / "ledger.jsonl").read_text(encoding="utf-8"))
     row["support_span"] = row["support_span"].replace("22 um", "48 um")
-    row["claim"] = row["claim"].replace("22 ±", "48 ±")
+    row["claim"] = row["claim"].replace("= 22 μm", "= 48 μm")
     (run_dir / "ledger.jsonl").write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
     _, out1 = run(cc)
     report("K5", sup(out0) == "OK" and sup(out1) == "FAIL",
