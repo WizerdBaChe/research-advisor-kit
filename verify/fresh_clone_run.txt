@@ -1,34 +1,24 @@
-# fresh clone of main at 98416e1, 2026-11-18, run under an EMPTY home: HOME, USERPROFILE and CLAUDE_CONFIG_DIR pointed at a new empty folder; python = a venv over the system site-packages
-# each later run blocks one optional module through LSE_BLOCK_MODULES (a sitecustomize in the venv makes its import raise ModuleNotFoundError)
+# fresh clone of main at 62a364c, 2026-11-18, run under an EMPTY home: HOME, USERPROFILE and CLAUDE_CONFIG_DIR pointed at a new empty folder
+# python: a venv WITHOUT system site-packages; first only verify/requirements.txt is installed (pip freeze below), then the two optional packages PyMuPDF and PyYAML
+# a blocked run makes the named modules fail to import through a sitecustomize in the venv (LSE_BLOCK_MODULES)
 # run: python -X utf8 verify/run_controls.py <scratch>
-### empty home, nothing blocked (blocked: none)
-env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
-K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
-K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
-K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
-K1d  connectors/zotero_local.py --selftest : exit 0, 'NOTE: this calibrates citation SHAPING and mark PROVENANCE on a fixture. Reading the real database is exercise' -> ok
-K1e  loop/idkey.py --selftest : exit 0, '17 cases (12 must-parse / 4 must-unresolve / 1 must-differ), 0 broken' -> ok
-K1f  loop/inbox.py --selftest : exit 0, 'selftest: PASS' -> ok
-K1g  loop/reflux.py --selftest : exit 0, '5 cases (2 must-reject / 3 must-accept), 0 broken — calibrated' -> ok
-K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
-K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
-K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
-K1k  verify/citecheck.py --selftest --offline: exit 0, '107 cases (53 must-pass / 54 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
-K2   loop/tests pytest: exit 0, 76 passed, 2 skipped in 1.98s -> ok
-K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
-K4   test_secret_file_guard.py: exit 0, 'must-deny: 57   must-pass: 57   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
-K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
-K6   literature_host_guard WebFetch: arxiv.org allow (silent) vs ieeexplore deny -> ok
-K7   profile-lint FAIL/WARN: shipped (0, 0) vs routing-collision (2, 6) (want (2, 6)) vs frontmatter-drift (2, 0) (want (2, 0)) -> ok
-K8   eval-impact cases selected: method-selection.md 3 (cases 2, 3, 5) vs deliverables.md 0 -> ok
-K9   profile-lint after adding a row: no file 1 FAIL (closure True) vs unfilled template 11 FAIL (closure False) -> ok
-UNDT connectors/local_find.py --selftest: exit 2, 'UNDETERMINED: no textbook library on this machine' (needs a textbook library; not counted)
-UNDT connectors/textbook_ocr.py --selftest: exit 1, 'selftest: no text-layer PDF found under None' (needs a textbook library; not counted)
-
-19/19 controls ok, 2 undetermined (not counted)
-exit=0
-### empty home, one optional dependency blocked (blocked: fitz,pymupdf)
-env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
+## pip freeze: requirements.txt only
+attrs==26.1.0
+colorama==0.4.6
+idutils==1.7.2
+iniconfig==2.3.1
+isbnlib2==3.11.26
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+packaging==26.3
+pluggy==1.7.0
+Pygments==2.21.0
+pytest==9.2.0
+referencing==0.37.0
+rpds-py==2026.9.1
+typing_extensions==4.16.0
+### empty home, requirements.txt only (PyMuPDF and PyYAML absent) (blocked: none)
+env: python 3.12.7, Windows 11, pytest 9.2.0, pymupdf absent, idutils 1.7.2, jsonschema 4.26.0
 K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
 K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
 K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
@@ -40,7 +30,7 @@ K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
 K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
 K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
 K1k  verify/citecheck.py --selftest --offline: exit 0, '87 cases (45 must-pass / 42 must-fail), 0 broken — gate is calibrated [offline: stub resolvers] [page-pointer ' -> ok
-K2   loop/tests pytest: exit 0, 76 passed, 2 skipped in 2.05s -> ok
+K2   loop/tests pytest: exit 0, 76 passed, 3 skipped in 1.98s (expected 3 skipped) -> ok
 K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
 K4   test_secret_file_guard.py: exit 0, 'must-deny: 57   must-pass: 57   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
 K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
@@ -53,8 +43,34 @@ UNDT connectors/textbook_ocr.py --selftest: exit 2, 'pymupdf (fitz) is required'
 
 19/19 controls ok, 2 undetermined (not counted)
 exit=0
-### empty home, one optional dependency blocked (blocked: rapidocr)
-env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
+## pip install pymupdf pyyaml (pymupdf 2.1 also pulls numpy, onnxruntime and others; pip freeze after):
+attrs==26.1.0
+colorama==0.4.6
+flatbuffers==25.12.19
+idutils==1.7.2
+iniconfig==2.3.1
+isbnlib2==3.11.26
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+networkx==3.7
+numpy==2.5.5
+onnxruntime==1.32.0
+packaging==26.3
+pluggy==1.7.0
+protobuf==7.36.2
+psutil==7.2.2
+Pygments==2.21.0
+pymupdf==2.1
+pymupdf4llm==2.1
+pymupdf_layout==2.1
+pytest==9.2.0
+PyYAML==6.0.3
+referencing==0.37.0
+rpds-py==2026.9.1
+tabulate==0.10.0
+typing_extensions==4.16.0
+### empty home, optional PyMuPDF and PyYAML installed (blocked: none)
+env: python 3.12.7, Windows 11, pytest 9.2.0, pymupdf 2.1, idutils 1.7.2, jsonschema 4.26.0
 K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
 K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
 K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
@@ -66,7 +82,7 @@ K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
 K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
 K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
 K1k  verify/citecheck.py --selftest --offline: exit 0, '107 cases (53 must-pass / 54 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
-K2   loop/tests pytest: exit 0, 76 passed, 2 skipped in 2.34s -> ok
+K2   loop/tests pytest: exit 0, 77 passed, 2 skipped in 1.92s (expected 2 skipped) -> ok
 K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
 K4   test_secret_file_guard.py: exit 0, 'must-deny: 57   must-pass: 57   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
 K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
@@ -75,12 +91,12 @@ K7   profile-lint FAIL/WARN: shipped (0, 0) vs routing-collision (2, 6) (want (2
 K8   eval-impact cases selected: method-selection.md 3 (cases 2, 3, 5) vs deliverables.md 0 -> ok
 K9   profile-lint after adding a row: no file 1 FAIL (closure True) vs unfilled template 11 FAIL (closure False) -> ok
 UNDT connectors/local_find.py --selftest: exit 2, 'UNDETERMINED: no textbook library on this machine' (needs a textbook library; not counted)
-UNDT connectors/textbook_ocr.py --selftest: exit 1, 'selftest: no text-layer PDF found under None' (needs a textbook library; not counted)
+UNDT connectors/textbook_ocr.py --selftest: exit 1, 'warnings.warn(' (needs a textbook library; not counted)
 
 19/19 controls ok, 2 undetermined (not counted)
 exit=0
-### empty home, one optional dependency blocked (blocked: cv2)
-env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
+### empty home, PyMuPDF blocked (installed but its import fails) (blocked: fitz,pymupdf)
+env: python 3.12.7, Windows 11, pytest 9.2.0, pymupdf 2.1, idutils 1.7.2, jsonschema 4.26.0
 K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
 K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
 K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
@@ -91,8 +107,8 @@ K1g  loop/reflux.py --selftest : exit 0, '5 cases (2 must-reject / 3 must-accept
 K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
 K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
 K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
-K1k  verify/citecheck.py --selftest --offline: exit 0, '107 cases (53 must-pass / 54 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
-K2   loop/tests pytest: exit 0, 76 passed, 2 skipped in 1.90s -> ok
+K1k  verify/citecheck.py --selftest --offline: exit 0, '87 cases (45 must-pass / 42 must-fail), 0 broken — gate is calibrated [offline: stub resolvers] [page-pointer ' -> ok
+K2   loop/tests pytest: exit 0, 77 passed, 2 skipped in 1.77s (expected 2 skipped) -> ok
 K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
 K4   test_secret_file_guard.py: exit 0, 'must-deny: 57   must-pass: 57   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
 K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
@@ -101,12 +117,12 @@ K7   profile-lint FAIL/WARN: shipped (0, 0) vs routing-collision (2, 6) (want (2
 K8   eval-impact cases selected: method-selection.md 3 (cases 2, 3, 5) vs deliverables.md 0 -> ok
 K9   profile-lint after adding a row: no file 1 FAIL (closure True) vs unfilled template 11 FAIL (closure False) -> ok
 UNDT connectors/local_find.py --selftest: exit 2, 'UNDETERMINED: no textbook library on this machine' (needs a textbook library; not counted)
-UNDT connectors/textbook_ocr.py --selftest: exit 1, 'selftest: no text-layer PDF found under None' (needs a textbook library; not counted)
+UNDT connectors/textbook_ocr.py --selftest: exit 2, 'pymupdf (fitz) is required' (needs a textbook library; not counted)
 
 19/19 controls ok, 2 undetermined (not counted)
 exit=0
-### empty home, one optional dependency blocked (blocked: numpy)
-env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
+### empty home, PyYAML blocked (installed but its import fails) (blocked: yaml)
+env: python 3.12.7, Windows 11, pytest 9.2.0, pymupdf 2.1, idutils 1.7.2, jsonschema 4.26.0
 K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
 K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
 K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
@@ -118,7 +134,7 @@ K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
 K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
 K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
 K1k  verify/citecheck.py --selftest --offline: exit 0, '107 cases (53 must-pass / 54 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
-K2   loop/tests pytest: exit 0, 76 passed, 2 skipped in 2.27s -> ok
+K2   loop/tests pytest: exit 0, 76 passed, 3 skipped in 1.75s (expected 3 skipped) -> ok
 K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
 K4   test_secret_file_guard.py: exit 0, 'must-deny: 57   must-pass: 57   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
 K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
@@ -127,12 +143,13 @@ K7   profile-lint FAIL/WARN: shipped (0, 0) vs routing-collision (2, 6) (want (2
 K8   eval-impact cases selected: method-selection.md 3 (cases 2, 3, 5) vs deliverables.md 0 -> ok
 K9   profile-lint after adding a row: no file 1 FAIL (closure True) vs unfilled template 11 FAIL (closure False) -> ok
 UNDT connectors/local_find.py --selftest: exit 2, 'UNDETERMINED: no textbook library on this machine' (needs a textbook library; not counted)
-UNDT connectors/textbook_ocr.py --selftest: exit 1, 'selftest: no text-layer PDF found under None' (needs a textbook library; not counted)
+UNDT connectors/textbook_ocr.py --selftest: exit 1, 'warnings.warn(' (needs a textbook library; not counted)
 
 19/19 controls ok, 2 undetermined (not counted)
 exit=0
-### empty home, one optional dependency blocked (blocked: PIL)
-env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
+## note: numpy is installed (pulled by pymupdf) but no control imports it; rapidocr, cv2 and PIL are not installed. The next run shows blocking them changes no result; it does not exercise the OCR path.
+### empty home, rapidocr/cv2/numpy/PIL blocked (vacuous for the OCR path) (blocked: rapidocr,cv2,numpy,PIL)
+env: python 3.12.7, Windows 11, pytest 9.2.0, pymupdf 2.1, idutils 1.7.2, jsonschema 4.26.0
 K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
 K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
 K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
@@ -144,7 +161,7 @@ K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
 K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
 K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
 K1k  verify/citecheck.py --selftest --offline: exit 0, '107 cases (53 must-pass / 54 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
-K2   loop/tests pytest: exit 0, 76 passed, 2 skipped in 1.94s -> ok
+K2   loop/tests pytest: exit 0, 77 passed, 2 skipped in 1.97s (expected 2 skipped) -> ok
 K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
 K4   test_secret_file_guard.py: exit 0, 'must-deny: 57   must-pass: 57   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
 K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
@@ -153,33 +170,7 @@ K7   profile-lint FAIL/WARN: shipped (0, 0) vs routing-collision (2, 6) (want (2
 K8   eval-impact cases selected: method-selection.md 3 (cases 2, 3, 5) vs deliverables.md 0 -> ok
 K9   profile-lint after adding a row: no file 1 FAIL (closure True) vs unfilled template 11 FAIL (closure False) -> ok
 UNDT connectors/local_find.py --selftest: exit 2, 'UNDETERMINED: no textbook library on this machine' (needs a textbook library; not counted)
-UNDT connectors/textbook_ocr.py --selftest: exit 1, 'selftest: no text-layer PDF found under None' (needs a textbook library; not counted)
-
-19/19 controls ok, 2 undetermined (not counted)
-exit=0
-### empty home, one optional dependency blocked (blocked: yaml)
-env: python 3.12.7, Windows 11, pytest 9.1.1, pymupdf 1.26.7, idutils 1.7.0, jsonschema 4.26.0
-K1a  connectors/access_policy.py --selftest : exit 0, 'ok        live: an unlisted host is still refused at the same count (control)' -> ok
-K1b  connectors/pdf_index.py --selftest : exit 0, '6 cases (4 must-parse / 2 must-degrade-without-inventing), 0 broken — parser is calibrated' -> ok
-K1c  connectors/probe.py --selftest : exit 0, '5 cases, 0 broken — scanner is two-sided' -> ok
-K1d  connectors/zotero_local.py --selftest : exit 0, 'NOTE: this calibrates citation SHAPING and mark PROVENANCE on a fixture. Reading the real database is exercise' -> ok
-K1e  loop/idkey.py --selftest : exit 0, '17 cases (12 must-parse / 4 must-unresolve / 1 must-differ), 0 broken' -> ok
-K1f  loop/inbox.py --selftest : exit 0, 'selftest: PASS' -> ok
-K1g  loop/reflux.py --selftest : exit 0, '5 cases (2 must-reject / 3 must-accept), 0 broken — calibrated' -> ok
-K1h  loop/runs.py --selftest : exit 0, 'calibrated' -> ok
-K1i  verify/fetchsrc.py --selftest : exit 0, '0 broken — calibrated' -> ok
-K1j  verify/staleclaim.py --selftest : exit 0, '8 cases (5 must-pass / 3 must-fail), 0 broken — checker is calibrated' -> ok
-K1k  verify/citecheck.py --selftest --offline: exit 0, '107 cases (53 must-pass / 54 must-fail), 0 broken — gate is calibrated [offline: stub resolvers]' -> ok
-K2   loop/tests pytest: exit 0, 75 passed, 3 skipped in 1.92s -> ok
-K3   test_literature_host_guard.py: exit 0, 'ALL TESTS PASSED' -> ok
-K4   test_secret_file_guard.py: exit 0, 'must-deny: 57   must-pass: 57   undetermined (not counted): 3   unclassifiable shape (fail-open): 3   failures' -> ok
-K5   citecheck support: shipped span OK vs span 22->48 um FAIL -> ok
-K6   literature_host_guard WebFetch: arxiv.org allow (silent) vs ieeexplore deny -> ok
-K7   profile-lint FAIL/WARN: shipped (0, 0) vs routing-collision (2, 6) (want (2, 6)) vs frontmatter-drift (2, 0) (want (2, 0)) -> ok
-K8   eval-impact cases selected: method-selection.md 3 (cases 2, 3, 5) vs deliverables.md 0 -> ok
-K9   profile-lint after adding a row: no file 1 FAIL (closure True) vs unfilled template 11 FAIL (closure False) -> ok
-UNDT connectors/local_find.py --selftest: exit 2, 'UNDETERMINED: no textbook library on this machine' (needs a textbook library; not counted)
-UNDT connectors/textbook_ocr.py --selftest: exit 1, 'selftest: no text-layer PDF found under None' (needs a textbook library; not counted)
+UNDT connectors/textbook_ocr.py --selftest: exit 1, 'warnings.warn(' (needs a textbook library; not counted)
 
 19/19 controls ok, 2 undetermined (not counted)
 exit=0

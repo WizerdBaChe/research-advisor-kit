@@ -13,9 +13,14 @@
 
 **控制項不讀已安裝的 `~/.claude`**：`run_controls.py` 把 `CLAUDE_CONFIG_DIR` 指到暫存區裡的空資料夾、`LSE_HOST_POLICY` 指到 repo 內的政策檔。
 v1.0.1 以前 K1a、K6 會去讀機器上已安裝的政策檔，所以在「沒裝過的新機器」上是 17/19（同一則回饋量到；本機用空的假家目錄重現）。
-v1.1.0 的紀錄（`verify/fresh_clone_run.txt`）是全新 clone、`HOME`／`USERPROFILE`／`CLAUDE_CONFIG_DIR` 都指到空資料夾的結果：19/19，另外各封鎖一個選用模組
-（PyMuPDF、rapidocr、cv2、numpy、PIL、yaml；以 venv 內的 sitecustomize 掛鉤讓它們的 import 失敗）各跑一次，皆為 19/19。
-差異只有兩處：封鎖 PyMuPDF 時 K1k 為 87 例並註明略過頁指標案例；封鎖 yaml 時 K2 為 75 passed、3 skipped（有一例需要 yaml，被略過而不是失敗）。
+v1.1.0 的紀錄（`verify/fresh_clone_run.txt`，含兩次 `pip freeze`）是全新 clone、`HOME`／`USERPROFILE`／`CLAUDE_CONFIG_DIR` 都指到空資料夾、
+python 用「不含系統 site-packages 的 venv」跑的結果；venv 先只裝 `verify/requirements.txt`（PyMuPDF、PyYAML 都不在），共五次，皆為 19/19：
+(1) 只有 requirements：K1k 87 例、K2 76 passed／3 skipped；
+(2) 另裝選用的 PyMuPDF 與 PyYAML：K1k 107 例、K2 77 passed／2 skipped；
+(3) 封鎖 PyMuPDF（已安裝但 import 失敗，以 venv 內的 sitecustomize 掛鉤）：K1k 87 例並註明略過頁指標案例；
+(4) 封鎖 yaml：K2 76 passed／3 skipped（有一例需要 yaml，被略過而不是失敗）；
+(5) 封鎖 rapidocr、cv2、numpy、PIL：結果與 (2) 相同。**這一次對 OCR 路徑是空轉**：rapidocr、cv2、PIL 沒裝，numpy 雖被 PyMuPDF 帶進來但沒有任何控制項 import 它，所以它只說明「封鎖這些不改變任何結果」，不是 OCR 被執行過。
+（安裝 PyMuPDF 2.1 會一併帶入 numpy、onnxruntime 等相依套件，凍結清單裡看得到。）
 
 **驗收控制（`verify/controls_run.txt`）：19 of 19 ok，2 undetermined（不計入）。** 每一行都印出實際斷言的值：
 
