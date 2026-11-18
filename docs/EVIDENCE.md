@@ -13,7 +13,9 @@
 
 **控制項不讀已安裝的 `~/.claude`**：`run_controls.py` 把 `CLAUDE_CONFIG_DIR` 指到暫存區裡的空資料夾、`LSE_HOST_POLICY` 指到 repo 內的政策檔。
 v1.0.1 以前 K1a、K6 會去讀機器上已安裝的政策檔，所以在「沒裝過的新機器」上是 17/19（同一則回饋量到；本機用空的假家目錄重現）。
-v1.0.2 的紀錄另以空的假家目錄重跑一次，結果相同（19/19）。
+v1.1.0 的紀錄（`verify/fresh_clone_run.txt`）是全新 clone、`HOME`／`USERPROFILE`／`CLAUDE_CONFIG_DIR` 都指到空資料夾的結果：19/19，另外各封鎖一個選用模組
+（PyMuPDF、rapidocr、cv2、numpy、PIL、yaml；以 venv 內的 `sitecustomize.py` 讓它們的 import 失敗）各跑一次，皆為 19/19。
+差異只有兩處：封鎖 PyMuPDF 時 K1k 為 87 例並註明略過頁指標案例；封鎖 yaml 時 K2 為 75 passed、3 skipped（有一例需要 yaml，被略過而不是失敗）。
 
 **驗收控制（`verify/controls_run.txt`）：19 of 19 ok，2 undetermined（不計入）。** 每一行都印出實際斷言的值：
 
