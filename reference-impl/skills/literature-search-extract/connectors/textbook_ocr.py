@@ -15,11 +15,29 @@ file — "wrong data is worse than no data". The gate rules only on what it can
 determine (token plausibility, detected text angle, sparsity); it never
 rewrites text and never fills a gap.
 
-ENGINE. Windows built-in OCR (`Windows.Media.Ocr`, WinRT), driven through one
-PowerShell process per batch. Zero install; languages on this machine:
-en-US, ja, zh-Hans-CN, zh-Hant-TW (probe recorded in ops/environment.md
-§Local toolchain). It returns no confidence score, so the gate is built from
-what it DOES return: the text itself and `TextAngle` (detected skew).
+ENGINES (`--engine`, recorded in the manifest's `engine.name`):
+    winrt     DEFAULT. Windows built-in OCR (`Windows.Media.Ocr`), one PowerShell
+              process per batch. Zero install; languages on this machine: en-US,
+              ja, zh-Hans-CN, zh-Hant-TW (ops/environment.md §Local toolchain).
+              Returns no confidence; the gate uses the text and `TextAngle`.
+    rapidocr  PP-OCR ONNX models on CPU (`pip install rapidocr onnxruntime`).
+              Reads contents pages (dot leaders) and two-column layouts far
+              better than winrt; angle is estimated from the detected line boxes.
+    vlm       A vision-language OCR model behind a llama.cpp `llama-server`
+              that the caller started with the model AND its mmproj
+              (`--vlm-url`, default http://127.0.0.1:8091; measured with the
+              official PaddleOCR-VL-1.5 GGUF). Best on formulas and Chinese, but
+              it reports no angle, emits LaTeX/markdown, and can loop on dot
+              leaders — the repetition rule below catches the loop. Local only:
+              no page image leaves the machine.
+The per-class choice is measured, not assumed: ocr_bench.py scores every engine
+by character error rate on fixed regions (ocr_bench_gt.json).
+
+TEXT LAYER, PER PAGE. A book whose sampled pages all carry text is skipped as
+before. A book with SOME pages lacking a text layer (a handbook with scanned
+inserts) is OCRed on those pages only; the others are copied from the layer
+with status `text-layer`, so the sidecar holds the whole book and says, per
+page, where each text came from.
 
 PAGE STATUS VOCABULARY (manifest `pages[].status`):
     ok       accepted, text file written
@@ -28,12 +46,16 @@ PAGE STATUS VOCABULARY (manifest `pages[].status`):
     skew     |TextAngle| still above SKEW_DEG after the deskew retry → EXCLUDED
     garbage  enough tokens but too few plausible words → EXCLUDED
     error    engine raised / no result → EXCLUDED
+    text-layer  (mixed books only) copied from the PDF's own text layer, not OCRed
+A page whose output repeats one short unit REPEAT_RUN times in a row (a VLM
+stuck on a dot leader) is `garbage`, with `repeat_run` in its metrics.
 
 Exclusion is a status, not a deletion: the page number stays in the manifest
 so a reader knows the hole is there and why.
 
 Usage:
     python textbook_ocr.py --pdf <file.pdf> [--lang auto|en-US|zh-Hans-CN|zh-Hant-TW] [--dpi 150]
+                           [--engine winrt|rapidocr|vlm] [--vlm-url http://127.0.0.1:8091]
     python textbook_ocr.py --scan <root>        list PDFs without a text layer (dry)
     python textbook_ocr.py --report <root>      summarise every <book>.ocr manifest under root
     python textbook_ocr.py --selftest           two-sided gate calibration (see below)
@@ -83,7 +105,15 @@ SKEW_DEG = 1.5          # |TextAngle| above this after retry -> 'skew'
 DESKEW_TRY_DEG = 1.0    # |TextAngle| above this triggers the deskew retry
 QUALITY_MIN = 0.55      # plausible-word share below this (with >= SPARSE_TOKENS) -> 'garbage'
 TEXT_LAYER_MIN_CHARS = 200  # per sampled page; below on all samples -> "no text layer"
+PAGE_TEXT_MIN_CHARS = 20    # per page: below this the page has no usable text layer (mixed books)
+REPEAT_RUN = 80             # one 1-4 char unit repeated this many times in a row -> 'garbage' (VLM loop)
+MIRROR_MIN = 5              # reversed common words ('eht','ot') >= this and > 2x forward -> 'garbage'
 # ---------------------------------------------------------------------------
+
+ENGINES = ("winrt", "rapidocr", "vlm")
+VLM_URL = "http://127.0.0.1:8091"
+VLM_PROMPT = "OCR:"  # PaddleOCR-VL task prompt (model card)
+REPEAT = re.compile(r"(.{1,4}?)\1{%d,}" % (REPEAT_RUN - 1), re.S)
 
 LANGS = ("en-US", "zh-Hans-CN", "zh-Hant-TW")
 LATIN_WORD = re.compile(r"^(?:[A-Za-z][a-z]{1,}|[A-Z]{2,}|[A-Za-z]\.?)$")
@@ -159,15 +189,21 @@ def quality(text: str) -> tuple[int, float, float]:
     toks = [t for t in toks if t]
     if not toks:
         return 0, 0.0, 0.0
-    good = 0
+    # A CJK run counts one token PER CHARACTER: winrt spaces every character
+    # ('固 体 物 理'), rapidocr and VLMs do not ('固体物理'), and a whitespace
+    # count ruled a full VLM page of Chinese 'sparse' (measured 2026-11-16).
+    good = total = 0
     for t in toks:
-        if CJK.search(t):
-            good += 1
-        elif LATIN_WORD.match(t) or NUMBER.match(t):
-            good += 1
+        k = len(CJK.findall(t))
+        if k:
+            good += k
+            total += k
+        else:
+            total += 1
+            good += bool(LATIN_WORD.match(t) or NUMBER.match(t))
     nonspace = re.sub(r"\s+", "", text)
     cjk_share = (len(CJK.findall(nonspace)) / len(nonspace)) if nonspace else 0.0
-    return len(toks), good / len(toks), cjk_share
+    return total, good / total, cjk_share
 
 
 CJK_GAP = re.compile(r"(?<=[㐀-鿿豈-﫿　-〿＀-￯])[ \t]+(?=[㐀-鿿豈-﫿　-〿＀-￯])")
@@ -182,17 +218,47 @@ def normalize_cjk_spacing(text: str) -> str:
     return CJK_GAP.sub("", text)
 
 
+FWD_WORDS = {"the", "of", "and", "to", "in", "is", "at"}
+REV_WORDS = {"eht", "fo", "dna", "ot", "ni", "si", "ta"}  # the same words read backwards
+
+
+def mirror_counts(text: str) -> tuple[int, int]:
+    """(forward, reversed) counts of seven common English words. A mirrored page
+    read by an engine that still recognises the glyphs comes out as reversed
+    words ('eht', 'ot', 'ta') that pass the word-SHAPE test (measured 2026-11-16:
+    rapidocr on a mirrored Sze page scored quality 0.744 -> 'ok')."""
+    toks = [t.strip(".,;:!?()[]{}\"'").lower() for t in text.split()]
+    return sum(t in FWD_WORDS for t in toks), sum(t in REV_WORDS for t in toks)
+
+
+def repeat_run(text: str) -> int:
+    """Longest run of one 1-4 char unit repeated back to back, spaces ignored."""
+    m = REPEAT.search(re.sub(r"\s+", "", text))
+    if not m:
+        return 0
+    unit, span = m.group(1), m.group(0)
+    return len(span) // len(unit)
+
+
 def classify(text: str, angle: float | None, err: str | None) -> tuple[str, dict]:
     tokens, q, cjk = quality(text)
     metrics = {"chars": len(text), "tokens": tokens, "quality": round(q, 3), "cjk_share": round(cjk, 3),
                "angle": None if angle is None else round(angle, 2)}
     if err:
         return "error", metrics
+    rr = repeat_run(text)
+    if rr:
+        metrics["repeat_run"] = rr
+        return "garbage", metrics
     if angle is not None and abs(angle) > SKEW_DEG:
         return "skew", metrics
     if tokens < SPARSE_TOKENS:
         return "sparse", metrics
     if q < QUALITY_MIN:
+        return "garbage", metrics
+    fwd, rev = mirror_counts(text)
+    if cjk < 0.2 and rev >= MIRROR_MIN and rev > 2 * fwd:
+        metrics["mirror_words"] = [fwd, rev]
         return "garbage", metrics
     return "ok", metrics
 
@@ -234,6 +300,122 @@ def run_engine(pairs: list[tuple[int, Path]], lang: str, work: Path) -> dict[int
     return rows
 
 
+def rapid_lines(boxes, txts) -> str:
+    """Group RapidOCR boxes into lines by vertical overlap, then left to right."""
+    if boxes is None or txts is None:
+        return ""
+    items = []
+    for b, t in zip(boxes, txts):
+        ys = [p[1] for p in b]
+        xs = [p[0] for p in b]
+        items.append((min(ys), max(ys), min(xs), t))
+    items.sort(key=lambda x: (x[0], x[2]))
+    lines: list[list] = []
+    for it in items:
+        if lines:
+            y0, y1 = lines[-1][0], lines[-1][1]
+            h = min(y1 - y0, it[1] - it[0]) or 1
+            if min(y1, it[1]) - max(y0, it[0]) > 0.5 * h:
+                lines[-1][2].append(it)
+                lines[-1][0], lines[-1][1] = min(y0, it[0]), max(y1, it[1])
+                continue
+        lines.append([it[0], it[1], [it]])
+    return "\n".join(" ".join(t for *_, t in sorted(ln[2], key=lambda x: x[2])) for ln in lines)
+
+
+def rapid_angle(boxes) -> float | None:
+    """Median slope (degrees) of the top edge of wide line boxes; None if no line
+    box is wide enough to measure. Sign follows image y-down: positive = the line
+    falls to the right."""
+    import math
+    if boxes is None:
+        return None
+    angs = []
+    for b in boxes:
+        (x0, y0), (x1, y1) = b[0], b[1]
+        h = abs(b[3][1] - b[0][1]) or 1
+        if abs(x1 - x0) > 4 * h:
+            angs.append(math.degrees(math.atan2(y1 - y0, x1 - x0)))
+    if not angs:
+        return None
+    angs.sort()
+    return angs[len(angs) // 2]
+
+
+_RAPID = None
+
+
+def _rapid_version() -> str | None:
+    try:
+        from importlib.metadata import version
+        return "rapidocr " + version("rapidocr")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def run_rapidocr(pairs: list[tuple[int, Path]]) -> dict[int, dict]:
+    global _RAPID
+    if _RAPID is None:
+        from rapidocr import RapidOCR
+        _RAPID = RapidOCR()
+    rows = {}
+    for p, png in pairs:
+        try:
+            res = _RAPID(str(png))
+            rows[p] = {"page": p, "text": rapid_lines(res.boxes, res.txts), "angle": rapid_angle(res.boxes),
+                       "err": None}
+        except Exception as e:  # noqa: BLE001 — recorded as status 'error'
+            rows[p] = {"page": p, "text": "", "angle": None, "err": f"{type(e).__name__}: {e}"[:300]}
+    return rows
+
+
+def run_vlm(pairs: list[tuple[int, Path]], url: str) -> dict[int, dict]:
+    import base64
+    import urllib.request
+    rows = {}
+    for p, png in pairs:
+        body = json.dumps({
+            "messages": [{"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": "data:image/png;base64," +
+                                                    base64.b64encode(png.read_bytes()).decode()}},
+                {"type": "text", "text": VLM_PROMPT}]}],
+            "temperature": 0, "max_tokens": 4096, "stream": False}).encode()
+        try:
+            req = urllib.request.Request(f"{url}/v1/chat/completions", data=body,
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=600) as r:
+                text = json.loads(r.read())["choices"][0]["message"]["content"]
+            rows[p] = {"page": p, "text": text, "angle": None, "err": None}
+        except Exception as e:  # noqa: BLE001
+            rows[p] = {"page": p, "text": "", "angle": None, "err": f"{type(e).__name__}: {e}"[:300]}
+    return rows
+
+
+def vlm_model(url: str) -> str | None:
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"{url}/v1/models", timeout=10) as r:
+            return json.loads(r.read())["data"][0]["id"]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def run_pages(engine: str, pairs: list[tuple[int, Path]], lang: str, work: Path,
+              vlm_url: str = VLM_URL) -> dict[int, dict]:
+    if engine == "winrt":
+        return run_engine(pairs, lang, work)
+    if engine == "rapidocr":
+        return run_rapidocr(pairs)
+    if engine == "vlm":
+        return run_vlm(pairs, vlm_url)
+    raise ValueError(f"unknown engine {engine}")
+
+
+def pages_without_text(doc: fitz.Document) -> list[int]:
+    """1-based pages whose text layer is below PAGE_TEXT_MIN_CHARS."""
+    return [i + 1 for i in range(doc.page_count) if len(doc[i].get_text().strip()) < PAGE_TEXT_MIN_CHARS]
+
+
 def pick_language(doc: fitz.Document, dpi: int, work: Path) -> tuple[str, dict]:
     """Try every installed language on six mid-book pages; keep the best
     plausible-word share. Two-sided by construction: a Chinese book scores
@@ -256,11 +438,22 @@ def pick_language(doc: fitz.Document, dpi: int, work: Path) -> tuple[str, dict]:
 
 
 # ---------------------------------------------------------------- main ops
-def ocr_book(pdf: Path, lang: str, dpi: int, batch: int = 200, force: bool = False) -> Path:
+ENGINE_NAMES = {"winrt": "Windows.Media.Ocr", "rapidocr": "RapidOCR (PP-OCR ONNX)",
+                "vlm": "llama.cpp llama-server VLM"}
+
+
+def ocr_book(pdf: Path, lang: str, dpi: int, batch: int = 200, force: bool = False,
+             engine: str = "winrt", vlm_url: str = VLM_URL) -> Path:
     doc = fitz.open(pdf)
+    n = doc.page_count
+    layer_pages: set[int] = set()  # pages copied from the PDF's own text layer
     if has_text_layer(doc) and not force:
-        print(f"SKIP (has text layer): {pdf.name}")
-        return pdf
+        missing = pages_without_text(doc)
+        if not missing:
+            print(f"SKIP (has text layer): {pdf.name}")
+            return pdf
+        layer_pages = set(range(1, n + 1)) - set(missing)
+        print(f"MIXED: {len(missing)}/{n} pages lack a text layer -> OCR those only: {pdf.name}")
     side = pdf.with_name(pdf.stem + ".ocr")
     textdir = side / "text"
     side.mkdir(exist_ok=True)
@@ -278,16 +471,24 @@ def ocr_book(pdf: Path, lang: str, dpi: int, batch: int = 200, force: bool = Fal
     if lang == "auto":
         lang, lang_scores = pick_language(doc, dpi, work)
         print(f"lang auto -> {lang} {lang_scores}")
-    n = doc.page_count
+    if engine == "vlm" and vlm_model(vlm_url) is None:
+        raise RuntimeError(f"--engine vlm: no llama-server answering at {vlm_url}")
     pages: list[dict] = []
-    for start in range(0, n, batch):
-        idx = list(range(start, min(n, start + batch)))
+    for p in sorted(layer_pages):
+        text = doc[p - 1].get_text()
+        status, metrics = classify(text, None, None)
+        pages.append({"page": p, "status": "text-layer", **metrics, "deskewed": False,
+                      "angle_before": None, "error": None})
+        (textdir / f"{p:04d}.txt").write_text(text, encoding="utf-8")
+    todo = [i for i in range(n) if i + 1 not in layer_pages]
+    for start in range(0, len(todo), batch):
+        idx = todo[start:start + batch]
         pairs = []
         for i in idx:
             png = work / f"p{i+1:04d}.png"
             render_page(doc, i, dpi, png)
             pairs.append((i + 1, png))
-        rows = run_engine(pairs, lang, work)
+        rows = run_pages(engine, pairs, lang, work, vlm_url)
         # deskew retry for pages the engine saw as tilted
         retry = [(p, rows[p]["angle"]) for p in rows
                  if rows[p].get("angle") is not None and abs(rows[p]["angle"]) > DESKEW_TRY_DEG]
@@ -308,7 +509,7 @@ def ocr_book(pdf: Path, lang: str, dpi: int, batch: int = 200, force: bool = Fal
                     pairs2.append((p, png))
                 if not pairs2:
                     break
-                rows2 = run_engine(pairs2, lang, work)
+                rows2 = run_pages(engine, pairs2, lang, work, vlm_url)
                 for p, r2 in rows2.items():
                     old = retried.get(p) or rows[p]
                     old_ang = abs(old.get("angle") or 0.0)
@@ -338,16 +539,19 @@ def ocr_book(pdf: Path, lang: str, dpi: int, batch: int = 200, force: bool = Fal
             png.unlink(missing_ok=True)
         for f in work.glob("r*.png"):
             f.unlink(missing_ok=True)
-        done = min(n, start + batch)
-        print(f"  {pdf.name[:50]}: {done}/{n} pages, {time.time()-t0:.0f}s", flush=True)
+        done = min(len(todo), start + batch)
+        print(f"  {pdf.name[:50]}: {done}/{len(todo)} OCR pages, {time.time()-t0:.0f}s", flush=True)
+    pages.sort(key=lambda r: r["page"])
     counts = {}
     for row in pages:
         counts[row["status"]] = counts.get(row["status"], 0) + 1
     manifest = {
         "schema": SCHEMA,
         "source": {"path": str(pdf), "sha256": src_sha, "size_bytes": pdf.stat().st_size, "pages": n},
-        "engine": {"name": "Windows.Media.Ocr", "language": lang, "language_scores": lang_scores,
-                   "dpi": dpi, "os": sys.getwindowsversion().build if hasattr(sys, "getwindowsversion") else None},
+        "engine": {"name": ENGINE_NAMES[engine], "id": engine, "language": lang, "language_scores": lang_scores,
+                   "dpi": dpi, "os": sys.getwindowsversion().build if hasattr(sys, "getwindowsversion") else None,
+                   "model": vlm_model(vlm_url) if engine == "vlm" else (_rapid_version() if engine == "rapidocr" else None)},
+        "text_source": ("mixed: text-layer pages copied, the rest OCRed" if layer_pages else "ocr"),
         "normalization": ("cjk-space-collapse (spaces between adjacent CJK characters removed; no character changed)"
                           if (lang.startswith("zh") or lang == "ja") else None),
         "gate": {"SPARSE_TOKENS": SPARSE_TOKENS, "SKEW_DEG": SKEW_DEG, "DESKEW_TRY_DEG": DESKEW_TRY_DEG,
@@ -434,6 +638,52 @@ def selftest() -> int:
         print("FAIL negative control: 12-degree rotation NOT detected as skew"); ok = False
     if verdicts["mirrored"][0] != "garbage":
         print("FAIL negative control: mirrored page not 'garbage'"); ok = False
+    # rapidocr engine: same three images, same gate
+    try:
+        import rapidocr  # noqa: F401
+        have_rapid = True
+    except ImportError:
+        have_rapid = False
+        print("  rapidocr not installed: its controls are SKIPPED (not passed)")
+    if have_rapid:
+        rr = run_rapidocr([(1, a), (2, b), (3, c)])
+        rv = {name: classify(rr[p].get("text", ""), rr[p].get("angle"), rr[p].get("err"))
+              for p, name in ((1, "clean"), (2, "rotated12"), (3, "mirrored"))}
+        for name, (st, met) in rv.items():
+            print(f"  rapidocr {name:10s} -> {st:8s} {met}")
+        if rv["clean"][0] != "ok":
+            print("FAIL rapidocr positive control: clean page not 'ok'"); ok = False
+        if rv["rotated12"][0] != "skew":
+            print("FAIL rapidocr negative control: 12-degree rotation not 'skew'"); ok = False
+        if rv["mirrored"][0] != "garbage":
+            print("FAIL rapidocr negative control: mirrored page not 'garbage'"); ok = False
+    # repetition rule: a VLM stuck on a dot leader vs a real contents page
+    loop = "PREFACE: ON PROCESS " + ". " * 300
+    toc = "\n".join(f"{k}. CHAPTER TITLE NUMBER {k} " + ". " * 40 + str(10 * k) for k in range(1, 12))
+    st_loop, met_loop = classify(loop + " words " * 40, None, None)
+    st_toc, _ = classify(toc, None, None)
+    print(f"  repetition: loop -> {st_loop} (repeat_run={met_loop.get('repeat_run')}), real contents page -> {st_toc}")
+    if st_loop != "garbage":
+        print("FAIL negative control: dot-leader loop not 'garbage'"); ok = False
+    if st_toc == "garbage":
+        print("FAIL positive control: a real contents page (40-dot leaders) ruled 'garbage'"); ok = False
+    # CJK token count must not depend on whether the engine spaces characters
+    zh = "選擇緊挨著你已經繪畫過顏色旁邊的下一個色塊進行繪製那樣你就可以對比你實際看到的顏色關係"
+    st_tight, met_tight = classify(zh, None, None)
+    st_spaced, met_spaced = classify(" ".join(zh), None, None)
+    print(f"  cjk tokens: unspaced -> {st_tight} ({met_tight['tokens']}), spaced -> {st_spaced} ({met_spaced['tokens']})")
+    if st_tight != "ok" or met_tight["tokens"] != met_spaced["tokens"]:
+        print("FAIL control: unspaced Chinese counted differently from spaced Chinese"); ok = False
+    # per-page text layer: 2 text pages + 1 blank page -> only page 3 lacks text
+    mix = fitz.open()
+    for k in range(3):
+        pg = mix.new_page()
+        if k < 2:
+            pg.insert_text((72, 72), "This page carries a real text layer of some length. " * 2)
+    miss = pages_without_text(mix)
+    print(f"  per-page text layer: pages without text = {miss} (want [3])")
+    if miss != [3]:
+        print("FAIL per-page text-layer control"); ok = False
     print(f"selftest source: {pdf.name} page {i+1}; {'PASS' if ok else 'FAIL'}")
     for f in work.glob("*"):
         f.unlink(missing_ok=True)
@@ -451,6 +701,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--scan", metavar="ROOT", help="list PDFs without a text layer")
     ap.add_argument("--all", metavar="ROOT", help="OCR every PDF under ROOT that has no text layer")
     ap.add_argument("--report", metavar="ROOT")
+    ap.add_argument("--engine", default="winrt", choices=ENGINES)
+    ap.add_argument("--vlm-url", default=VLM_URL, help="llama-server base URL for --engine vlm")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args(argv)
     if a.selftest:
@@ -466,7 +718,7 @@ def main(argv: list[str]) -> int:
         ap.print_usage()
         return 2
     for pdf in targets:
-        ocr_book(pdf, a.lang, a.dpi, a.batch, a.force)
+        ocr_book(pdf, a.lang, a.dpi, a.batch, a.force, a.engine, a.vlm_url)
     return 0
 
 

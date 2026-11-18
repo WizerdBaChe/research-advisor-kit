@@ -31,8 +31,14 @@ Metadata source per item (in order):
      serve RIS directly; verified 2026-08-31)
   2. Crossref REST: GET https://api.crossref.org/works/<doi> -> JSON -> RIS
   3. "manual" metadata block -> RIS
+Gap fills after the record is built (each named in the status log):
+  - a DOI record with no PY/Y1/DA takes Crossref's publication year, else the
+    item's ledger "year" with an N1 line saying so (never a deposit date);
+  - a manual arXiv item with no authors or year reads them from the arXiv API
+    through verify/apabib.py's access-policy guard.
 
-Only doi.org and api.crossref.org are ever contacted. Output file is
+This script's own fetcher contacts only doi.org and api.crossref.org; the
+arXiv fill goes through apabib's guarded fetch. Output file is
 "<collection-name>.ris" in --out-dir; Zotero's File->Import (with "Place
 imported collections and items into new collections" checked) then creates a
 collection named exactly after the file. The local Zotero HTTP API cannot do
@@ -166,6 +172,9 @@ def ris_from_crossref(doi: str) -> list[tuple[str, str]] | None:
     cont = (msg.get("container-title") or [""])
     if cont and cont[0]:
         rec.append(("T2", cont[0]))
+    for c in cont[1:]:                     # a chapter's book title often follows its series title
+        if c:
+            rec.append(("T3", c))
     year = None
     for k in ("published-print", "published-online", "issued"):
         dp = msg.get(k, {}).get("date-parts", [[None]])
@@ -234,6 +243,92 @@ def build_record(item: dict) -> tuple[list[tuple[str, str]] | None, str]:
     if item.get("manual"):
         return ris_from_manual(item["manual"]), "manual metadata"
     return None, "FAILED"
+
+
+YEAR_TAGS = {"PY", "Y1", "DA"}
+ARXIV_ABS = re.compile(r"arxiv\.org/abs/([^\s?#]+?)(?:v\d+)?$", re.I)
+
+
+def _apabib():
+    """verify/apabib.py, imported lazily: it carries the access-policy guard for export.arxiv.org."""
+    vdir = str(Path(__file__).resolve().parent.parent / "verify")
+    if vdir not in sys.path:
+        sys.path.insert(0, vdir)
+    import apabib  # noqa: E402
+    return apabib
+
+
+def fill_year(rec: list[tuple[str, str]], item: dict, crossref=None) -> tuple[list[tuple[str, str]], str]:
+    """A DOI record with no year (doi.org RIS omits PY for some book chapters): take Crossref's
+    publication date, else the evidence-run ledger's year, named in an N1 line. Never a deposit date."""
+    if YEAR_TAGS & {t for t, _ in rec} or not item.get("doi"):
+        return rec, ""
+    crossref = crossref or ris_from_crossref
+    try:
+        cr = crossref(item["doi"].strip()) or []
+    except Exception as e:  # noqa: BLE001
+        print(f"    crossref year lookup failed ({e})")
+        cr = []
+    py = next((v for t, v in cr if t == "PY"), "")
+    if py:
+        return rec + [("PY", py)], "year from Crossref"
+    # A Springer chapter DOI is <book DOI>_<n>; the book record often carries the year the chapter
+    # lacks. Taken only when that record is a book whose title is the chapter's container title.
+    m = re.match(r"^(10\.1007/.+)_\d+$", item["doi"].strip())
+    conts = {v.strip().lower() for t, v in cr if t in ("T2", "T3") and v.strip()}
+    if m and conts:
+        try:
+            book = crossref(m.group(1)) or []
+        except Exception as e:  # noqa: BLE001
+            print(f"    crossref book lookup failed ({e})")
+            book = []
+        bpy = next((v for t, v in book if t == "PY"), "")
+        btitle = next((v for t, v in book if t == "TI"), "")
+        if bpy and dict(book).get("TY") == "BOOK" and btitle.strip().lower() in conts:
+            note = f"year from the Crossref book record {m.group(1)}; the chapter record has none"
+            if item.get("year") and str(item["year"]) != bpy:
+                note += f"; the evidence-run ledger says {item['year']} (needs manual check)"
+            return rec + [("PY", bpy), ("N1", note)], "year from Crossref book record"
+    if item.get("year"):
+        return rec + [("PY", str(item["year"])),
+                      ("N1", "year from the evidence-run ledger; doi.org and Crossref list none")], \
+            "year from run ledger"
+    return rec, ""
+
+
+def fill_arxiv(rec: list[tuple[str, str]], item: dict, meta=None) -> tuple[list[tuple[str, str]], str]:
+    """A manual arXiv item whose ledger carried no authors or year: read them from the arXiv API
+    through apabib's policy guard. Authors are arXiv display strings split last-token-as-family,
+    an inference the N1 line states."""
+    url = str((item.get("manual") or {}).get("url", ""))
+    m = ARXIV_ABS.search(url)
+    tags = {t for t, _ in rec}
+    if not m or ({"AU", "A1"} & tags and YEAR_TAGS & tags):
+        return rec, ""
+    if meta is None:
+        ab = _apabib()
+        md = ab.meta_arxiv(m.group(1), ab.Guard())
+    else:
+        md = meta(m.group(1))
+    if not md.get("ok"):
+        print(f"    arXiv metadata unavailable ({md.get('status')}: {md.get('body', '')})")
+        return rec, ""
+    added, inferred = [], False
+    if not {"AU", "A1"} & tags:
+        for a in md.get("authors") or []:
+            if a.get("org"):
+                added.append(("AU", a["org"]))
+            else:
+                added.append(("AU", f"{a['family']}, {a['given']}".rstrip(", ")))
+                inferred = inferred or bool(a.get("inferred"))
+    if not YEAR_TAGS & tags and md.get("year"):
+        added.append(("PY", str(md["year"])))
+    if not added:
+        return rec, ""
+    if inferred:
+        added.append(("N1", "authors from the arXiv API; family/given split inferred from display names"))
+    head = [p for p in rec if p[0] == "TY"]
+    return head + added + [p for p in rec if p[0] != "TY"], "authors/year from arXiv API"
 
 
 def enrich(rec: list[tuple[str, str]], item: dict) -> list[tuple[str, str]]:
@@ -333,6 +428,10 @@ def main() -> int:
             print("    FAILED: no metadata source succeeded and no manual block")
             failures.append(iid)
             continue
+        for fill in (fill_year, fill_arxiv):
+            rec, how = fill(rec, item)
+            if how:
+                src += f" + {how}"
         rec = enrich(rec, item)
         print(f"    ok via {src}: {sanity_summary(rec)}")
         chunks.append(record_to_text(rec))

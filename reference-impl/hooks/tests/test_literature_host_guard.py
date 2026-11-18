@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 HOOK = Path(__file__).resolve().parents[1] / "literature_host_guard.py"
@@ -313,6 +314,22 @@ p = mix.run_raw(json.dumps({"tool_name": "Bash", "session_id": "s-mix", "tool_in
 objs = [ln for ln in (p.stdout or "").splitlines() if ln.strip()]
 check_that("N-12 a deny and a notice in one call: ONE JSON object on stdout, and it is the deny",
            len(objs) == 1 and json.loads(objs[0])["hookSpecificOutput"].get("permissionDecision") == "deny", p.stdout[:200])
+# N-13..15 (2026-11-09): notice budget wiring and the deny/notice ordering.
+retry_n, retry_d = mix.notice("Bash", {"command": f"curl '{OA}' '{OA}&x'"}, "s-mix")
+check_that("N-13 a deny that superseded the notice leaves no count and no `noticed`: the retry gets the notice",
+           retry_n != "" and not retry_d and "already made 1" in retry_n, retry_n[:120])
+bbox = Box()
+(bbox.dir / "cache" / "notice-budget").mkdir(parents=True, exist_ok=True)
+(bbox.dir / "cache" / "notice-budget" / "s-budget.json").write_text(
+    json.dumps({"keys": {"literature_host_guard:api.openalex.example": int(time.time())}}), encoding="utf-8")
+bn, bd = bbox.notice("Bash", {"command": f"curl '{OA}' '{OA}&x'"}, "s-budget")
+brows = [r for r in bbox.rows() if r["decision"] == "unlisted_script"]
+check_that("N-14 a spent budget key suppresses the notice; both calls are still counted, none marked noticed",
+           bn == "" and not bd and len(brows) == 2 and not any(r.get("noticed") for r in brows), (bn[:60], brows))
+two = Box()
+tn, td = two.notice("Bash", {"command": f"curl '{OA}' '{OA}&x' https://api.other.example/a https://api.other.example/b"}, "s-two")
+check_that("N-15 two over-cap unlisted hosts in one call: each gets its own notice (per-host budget key)",
+           "api.openalex.example" in tn and "api.other.example" in tn and not td, tn[:120])
 
 # ------------------------------------------------------------------ recording
 print("\n-- R: telemetry rows")

@@ -44,6 +44,8 @@ WHAT IT RULES ON, and only this:
         counter (fetchsrc's manifest) sees only fetchsrc's own requests. The notice fires once
         per (session, host), on the first over-cap call, and names the route that counts a
         script against a run (`connectors/access_policy.py --check --run <run> --record`).
+        It passes the notice budget under the key `literature_host_guard:<host>` (wired
+        2026-11-09; before that it printed outside hooks/notice_budget.py).
   ALLOW everything else, silently. An UNLISTED non-publisher host reached by WebFetch or by a
         shell command with no retrieval verb is ordinary web reading and this hook has no
         opinion on it; the other per-run caps (larger `max_per_run`, the three-unlisted-hosts
@@ -136,6 +138,11 @@ except Exception:  # imported by path from outside hooks/ (a tool, a test)
         def append_line(path, text):
             with open(path, "a", encoding="utf-8", newline="\n") as fh:
                 fh.write(text if text.endswith("\n") else text + "\n")
+
+try:                        # notice budget (WC-11b); fail-open: a broken budget never hides a notice
+    from notice_budget import allow as notice_allowed
+except Exception:
+    def notice_allowed(hook, session, text=""): return True
 
 try:                        # receipt + misfire exit (rules/hook-deny-message.md)
     from deny_receipt import clause as _receipt, fp_clause as _fp, notice_clause as _notice_receipt
@@ -442,6 +449,7 @@ def main() -> None:
 
     in_call: dict = {}                          # same capped host twice in one call counts twice
     notices: list = []                          # printed once at the end; a later deny supersedes them
+    pending: list = []                          # unlisted-script rows, written only if no deny follows
     retrieval_shell = False
     if tool in ("Bash", "PowerShell") and isinstance(tool_input.get("command"), str):
         retrieval_shell = bool(RETRIEVAL_RE.search(tool_input["command"]))
@@ -459,8 +467,9 @@ def main() -> None:
                 over = used >= cap
                 fire = over and not noticed and not any(n[0] == host for n in notices)
                 in_call[("unlisted", host)] = in_call.get(("unlisted", host), 0) + 1
-                record(sid, tool, url, host, surface, UNLISTED_SCRIPT,
-                       extra=({"over_cap": True, "cap": cap} if over else {}) | ({"noticed": True} if fire else {}))
+                # Written after the loop: a later deny means this call never ran (no count), and
+                # `noticed` is set only when the notice is actually printed.
+                pending.append((sid, url, host, surface, {"over_cap": True, "cap": cap} if over else {}, fire))
                 if fire:
                     notices.append((host, unlisted_notice(host, cap, used)))
             continue
@@ -478,6 +487,15 @@ def main() -> None:
         record(session_id, tool, url, host, surface, decision, row, loud=(decision == "deny"))
         if decision == "deny":
             deny(deny_reason(tool, host, surface, row, why))
+    # One budget key per host: a second over-cap host is a new fact. `noticed` is written only for a
+    # notice that prints; a budget-suppressed one is re-asked on later over-cap calls (one `repeat`
+    # budget row each, no second notice). A denied call writes no unlisted row and counts nothing.
+    notices = [n for n in notices if notice_allowed(f"literature_host_guard:{n[0]}", str(session_id)[:64], n[1])]
+    printed = {n[0] for n in notices}
+    for sid, url, host, surface, extra, fire in pending:
+        if fire and host in printed:
+            extra = dict(extra, noticed=True)
+        record(sid, tool, url, host, surface, UNLISTED_SCRIPT, extra=extra)
     if notices:
         print(json.dumps({
             "hookSpecificOutput": {

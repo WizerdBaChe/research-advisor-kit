@@ -158,3 +158,12 @@ accepted and a rejected event; `idkey.py --selftest` must-parse / must-unresolve
 review-when: the vault note contract (the vault's own AGENTS.md §2) changes its
 required keys; `citecheck.py` renames a ledger field; a second concurrent writer to
 `reflux.jsonl` appears (then the log moves to SQLite — design D-L8).
+
+## Central bibliography freshness (BB12)
+
+(Moved verbatim from SKILL.md Reference map.)
+
+- **Central bibliography freshness (BB12)** — `loop/runs.py register` and `inbox.py ingest --apply` end with a measured `NOTICE: central
+  bibliography is stale` (sources the run cites that `evidence-runs-bib.json` lacks, or whose access level moved) plus the refresh command
+  `python loop/inbox.py bib --ris`. Not automatic: the RIS export resolves every DOI over the network (3 min for 116 sources) and writes
+  outside the run folder. `runs.py register <run_dir> --export-bib` runs it at once. Tests: `loop/tests/test_bib_stale.py`.

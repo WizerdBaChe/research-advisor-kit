@@ -113,11 +113,9 @@ earlier runs in the vault's `literature/` with page locators) → **WebSearch/We
 fully functional with web search alone. Ladder, secret boundary, per-connector field maps:
 `references/connectors.md`; per-channel strategies, identifier resolution, citation
 chasing: `references/search-sources.md` — read it before any `standard`/`exhaustive` search.
-**Host access policy before any fetch.** `connectors/access_policy.py --url <u> --check`
-says which surface may touch which host (`~/.claude/hooks/literature-host-policy.json`); a
-refused or challenged host is handed to the user as a named DOI/URL + query pack, never
-retried through another User-Agent, browser or profile. Cited text comes ONLY through `verify/fetchsrc.py`
-(manifest + per-host/run caps; `--run` may sit in the caller's folder; PDFs stay in memory).
+**Host access policy before any fetch:** `connectors/access_policy.py --url <u> --check`; a refused or
+challenged host goes to the user as a named DOI/URL + query pack, never retried via another UA/browser/profile;
+cited text only via `verify/fetchsrc.py`. Full text: `references/connectors.md` §Host access policy before any fetch.
 Core principles:
 - Build queries from a **vocabulary ledger**: core terms + synonyms + the three keyword
   layers a database exposes (author / controlled / index terms, harvested from the seeds);
@@ -134,13 +132,10 @@ Core principles:
 - **Stopping rule:** stop when new queries return only already-seen sources (saturation),
   or when the depth quota is met and the extraction targets are filled. Log what was NOT
   searched if stopping early (feeds `gaps` and `search_trail`).
-- **Recall check — the positive control for the search itself.** Saturation proves the
-  query converged, not that it covered; a badly-built query converges *faster*. So
-  before any "not found in searched sources" ships, withhold a source known to exist and
-  be relevant, and check whether the queries as run surface it on their own. **A
-  withheld known item the search misses condemns the QUERY, not the literature** —
-  repair and re-run before reporting absence. Where controls come from, what to log, and
-  what to say when none exists: `references/search-sources.md` §Recall check.
+- **Recall check — the positive control for the search itself.** Before any "not found in searched
+  sources" ships, withhold a known relevant source and check the queries surface it; a miss condemns the QUERY,
+  not the literature — repair and re-run. Full rule: `references/search-sources.md` §Recall check, subsection
+  "Rationale and failure reading (moved from SKILL.md P2)".
 
 ### P3 — Triage & access tagging
 Rank candidates by (relevance to extraction targets) × (credibility) × (recency where it
@@ -183,9 +178,9 @@ For each selected source, work through the P1 target list against the section ma
 - **Note disagreements verbatim**: when two sources conflict, record both positions with
   locators. NEVER average, harmonize, or silently pick one — conflicts go to the
   `confidence` field and are surfaced to the caller as a finding in their own right.
-Worked examples per information-need type (including wrong-vs-right contrasts and the
-pre-P5 checklist) live in `references/extraction-playbook.md` — read it when running P4
-on a non-trivial extraction.
+- **List the undefined names per source** (product, instrument, group, codename) before writing,
+  then query each: `references/verification-gate.md` "Set-level checks", bullet "Unknown proper nouns".
+Worked examples + the pre-P5 checklist (non-trivial P4): `references/extraction-playbook.md`.
 
 ### P4.5 — Verification gate (between extraction and delivery)
 Self-report is not a check: the judgement that a citation is sound cannot come from the
@@ -229,8 +224,9 @@ re-runs P1 only, never a restart.
 
 ## Output format catalog
 
-Eight formats: inline summary · annotated bibliography · evidence table · method summary
-· parameter sheet · comparison matrix · quote pack · concept matrix. The "Use when" column
+Twelve formats: inline summary · annotated bibliography · evidence table · method summary
+· parameter sheet · comparison matrix · quote pack · concept matrix · and four cross-corpus
+ones (assumption census · method census · concept lineage · researcher genealogy). The "Use when" column
 (read it to infer `output_format` from the task verb) and each format's shape:
 `references/output-format-catalog.md`; templates: `references/output-templates.md`.
 
@@ -269,7 +265,7 @@ other check on this list and is invisible in the finished document.
 The reference files ship with the skill; load each on demand at the point the
 pipeline names it. P1→P5 is self-sufficient at `quick`/`standard` depth without them.
 - `references/resilience.md` — the four session-economy rules (budget, reuse, partial return, feedback).
-- `references/output-format-catalog.md` — the eight formats with their "Use when" rows and shapes.
+- `references/output-format-catalog.md` — the twelve formats with their "Use when" rows and shapes.
 - `references/feedback-loop.md` — the evidence feedback loop (persisted runs in the vault,
   identity key, reflux entry point, consumer registry, forcing functions). Tools:
   `loop/runs.py` (open/register/find/check/affected/bridge), `loop/reflux.py`, `loop/idkey.py`.
@@ -278,6 +274,8 @@ pipeline names it. P1→P5 is self-sufficient at `quick`/`standard` depth withou
   Contract and secret boundary: `connectors/README.md`; probe: `connectors/probe.py`.
 - `references/verification-gate.md` — P4.5 protocol: evidence ledger, what the gate may
   and may not rule on, repair order. Tools: `verify/citecheck.py`, `verify/fetchsrc.py`.
+- **Published reference lists come from the tool, never from typing** (`verify/apabib.py`) — usage, exit codes, ledger diff: `references/verification-gate.md` §Reference-list tool (apabib).
+- **Central bibliography freshness (BB12)** — the stale-bibliography NOTICE and refresh command: `references/feedback-loop.md` §Central bibliography freshness (BB12).
 - `references/portability.md` — READ FIRST when running outside Claude Code (other
   agents / web LLMs): capability slots, substitutes, degradation honesty. Else skip.
 - `references/search-sources.md` — per-channel strategies (each channel carries its own

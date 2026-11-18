@@ -65,6 +65,14 @@ MUST_DENY = [
     ("Grep", {"pattern": "KEY", "path": r"X:\synth\work-root\PatentsGrabber\.env"}),
     ("Bash", {"command": r'cat "X:\synth\work-root\PatentsGrabber\.env"'}),
     ("Bash", {"command": "head -5 .env"}),
+    # Narrowing pass 3 floor: what the URL and dataset exclusions must NOT clear.
+    ("Bash", {"command": "curl -s file:///C:/proj/.env"}),
+    ("Bash", {"command": "cat https_backup/.env"}),
+    ("Bash", {"command": "cat dataset.key"}),
+    ("Bash", {"command": "cat certs/dataset.key"}),
+    ("Bash", {"command": "cat C://Users/u/proj/.env"}),           # a drive letter is not a URL scheme
+    ("Read", {"file_path": "D://AIWork/proj/.env"}),
+    ("Bash", {"command": "cat ~/.dataset.key"}),                   # a hidden key file, not a property access
     ("Bash", {"command": "python -c \"print(open('.env').read())\""}),
     ("PowerShell", {"command": "Get-Content X:\\synth\\work-root\\PatentsGrabber\\.env"}),
     ("PowerShell", {"command": "gc ./secrets.json | ConvertFrom-Json"}),
@@ -133,6 +141,11 @@ MUST_PASS = [
     ("Bash", {"command": "conda env list"}),
     ("Bash", {"command": "python -c \"print(d.keys())\""}),
     ("Bash", {"command": "curl -s --key-status http://127.0.0.1:8000/api/library"}),
+    # Narrowing pass 3 (2026-11-09): a remote URL path and a JS dataset property.
+    ("Bash", {"command": "curl -sI https://wizerdbache.com/.env"}),
+    ("Bash", {"command": "curl -s -o /dev/null -w '%{http_code}' \"https://example.org/x/.env\""}),
+    ("Bash", {"command": "python - <<'EOF'\nprint('const k = el.dataset.key;')\nEOF"}),
+    ("Bash", {"command": "cat page.html | grep -n 'btn.dataset.key'"}),
     # The connector path this guard exists to keep open.
     ("Bash", {"command": "python connectors/probe.py --id patentsgrabber"}),
     ("Bash", {"command": "python X:/synth/work-root/PatentsGrabber/tools/verify_ops.py"}),

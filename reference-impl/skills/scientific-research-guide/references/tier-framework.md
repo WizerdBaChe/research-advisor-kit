@@ -91,6 +91,11 @@ PRISMA 流程圖。標準須在搜尋前預先定義，不可事後調整（否�
 **1.6 文獻綜合（Synthesis）** — 敘述性綜合（概念整合、描述知識邊界）；條件允許時做定量整合
 （Meta-Analysis，統計整合多研究效果量）。輸出：現有知識地圖與研究方向定位。敘述性綜合以概念為軸
 （沿概念矩陣的欄往下寫），不逐篇摘要——逐篇寫出來的是註解書目，不是綜合。
+整批文獻收齊後的橫向視角（`literature-search-extract` `output-templates.md` §9–§12）：前提普查
+（Assumption census）、方法分布（Method census）、概念譜系（Concept lineage）、研究者系譜
+（Researcher genealogy；判斷一批結果是不是同一派系出來的、算不算獨立重現）。研究者系譜與「這篇的前篇／跟哪個
+團隊接近」先查研究關聯圖譜（research graph，`tools/research-graph/rg.py independence <run_id>`、`who`、`near`）——
+它跨次累積、每條邊附證據；圖譜沒有的人才逐次手建（本公開套件未出貨圖譜工具，一律逐次手建）。
 
 ---
 

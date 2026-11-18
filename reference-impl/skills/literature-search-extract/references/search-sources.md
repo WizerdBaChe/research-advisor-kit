@@ -596,3 +596,13 @@ anything is missing.
 It catches a query built on the wrong vocabulary or pointed at the wrong channel — the
 common, cheap failure. It cannot detect systematically missing coverage (a whole
 literature in a language or venue nobody queried); that remains rubric §6's job.
+
+### Rationale and failure reading (moved from SKILL.md P2)
+
+- **Recall check — the positive control for the search itself.** Saturation proves the
+  query converged, not that it covered; a badly-built query converges *faster*. So
+  before any "not found in searched sources" ships, withhold a source known to exist and
+  be relevant, and check whether the queries as run surface it on their own. **A
+  withheld known item the search misses condemns the QUERY, not the literature** —
+  repair and re-run before reporting absence. Where controls come from, what to log, and
+  what to say when none exists: `references/search-sources.md` §Recall check.

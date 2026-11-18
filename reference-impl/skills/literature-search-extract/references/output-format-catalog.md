@@ -16,3 +16,16 @@ deliverable by it. Ready-to-copy templates for each row: `references/output-temp
 | Comparison matrix | choosing between methods/materials/models | rows = options; cols = caller's criteria; every cell cited |
 | Quote pack | exact wording needed (definitions, standards) | short quotes + full locators |
 | Concept matrix | literature review, gap scoping | rows = sources; cols = ledger concepts; cell = locator or —; empty column = gap candidate |
+| Assumption census | "what does this whole set take for granted", before trusting a field-wide consensus | rows = premises shared by ≥2 sources; cols = relying sources+locator, tested-by, if-wrong impact `[synthesis]` |
+| Method census | "which methods does this set use, which is thin, which paper is weakest" | rows = method classes (field taxonomy); cols = sources+locator, count, what it can/cannot establish, weakest instance |
+| Concept lineage | "who introduced / challenged / refined concept X" | per concept, dated edges source→source typed introduces/challenges/refines/applies, each edge cited from the CITING paper's text |
+| Researcher genealogy | "who are these people, which groups/schools, are these results independent" | nodes = researchers/groups; edges typed co-author / affiliation / advisor / heavy-citation, each with its own evidence route |
+
+The last four are **cross-corpus** formats (added 2026-11-17): they need a run corpus
+already gathered (≥5 sources; below that, say so and fall back to an evidence table) and
+describe THAT corpus, never the field — every "most", "first" or "untested" is scoped
+"in this run". Concept lineage follows ideas through citation text; researcher genealogy
+follows people through bylines and training — distinct objects, often run together:
+genealogy tells whether a premise in the assumption census is shared by independent
+groups or by one school (failure mode 7). Origins: Threads `ai.truistic_` 9-prompt post
+(prompts 2, 6, 9) and IG `Dfw3fSvFg_x` academic-genealogy carousel, both 2026-11.

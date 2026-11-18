@@ -11,7 +11,9 @@ lifecycle, §3.11 forcing functions, §6.3 LSEL-04). Invariants are cited as INV
                                                         create <home>/<run_id>/run.json (state open) AND run the reuse
                                                         check, writing `reuse_check` into run.json (F-1, INV-4, D-L18)
   python runs.py register <run_dir>                     validate; REFUSE without reuse_check; write record.md; index +
-                                                        README when filed; state -> delivered
+                                                        README when filed; state -> delivered. Then (stderr) a NOTICE
+                                                        if the central bibliography lacks this run's sources (BB12);
+                                                        --export-bib re-runs `inbox.py bib --ris` at once (network, slow)
   python runs.py find <terms...>                        NFKC+casefold search over question / keys / claims / domain
   python runs.py check <run_dir> [--json]               V1-V9 (severity by consumer); exit 2 on any FAIL
   python runs.py check --registry                       consumers/registry.json rows, status transitions, bridge freshness
@@ -531,6 +533,60 @@ def cmd_register(a) -> int:
     print(json.dumps({"registered": run["run"]["id"], "state": run["run"]["state"], "index": where,
                       "keys": run["keys"], "ledger_rows": run["ledger"]["rows"],
                       "record": str(run_dir / "record.md")}, ensure_ascii=False))
+    if run["run"]["filed"]:
+        _research_graph_after_register("--run", run_dir)
+        return _bib_after_register(run_dir.name, bool(getattr(a, "export_bib", False)))
+    return 0
+
+
+# AP-74 copy-of: skills/paper-distill/scripts/library.py::_research_graph_after_register — same body but the query hint; the two skills ship as separate script folders and do not import each other; cases: tools/research-graph/tests/test_after_register_parity.py
+def _research_graph_after_register(flag: str, path: Path) -> None:
+    """research-graph WC-8: ingest this run and rebuild the graph after a successful register. Non-fatal by
+    contract: any failure is ONE stderr notice and never changes the register's exit code; stdout stays the
+    register's own JSON line. rg.py exits 3 (silent skip) for a folder outside the literature root (tests)."""
+    import subprocess
+    rg = Path(__file__).resolve().parents[3] / "tools" / "research-graph" / "rg.py"
+    if not rg.exists():
+        return
+    try:
+        kw = dict(capture_output=True, text=True, encoding="utf-8", errors="replace")
+        r = subprocess.run([sys.executable, "-X", "utf8", str(rg), "ingest", flag, str(path)], timeout=120, **kw)
+        if r.returncode == 3:
+            return
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[-200:] or f"ingest rc={r.returncode}")
+        b = subprocess.run([sys.executable, "-X", "utf8", str(rg), "build"], timeout=600, **kw)
+        if b.returncode != 0:
+            raise RuntimeError((b.stderr or b.stdout).strip()[-200:] or f"build rc={b.returncode}")
+        alerts = [ln for ln in b.stdout.splitlines() if ln.startswith("新關聯")]
+        for ln in alerts:
+            print(ln, file=sys.stderr)
+        print(f"research-graph: updated ({len(alerts)} new relation(s)); query: rg.py independence {path.name}",
+              file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 — non-fatal by contract
+        print(f"research-graph: not updated ({exc}); rebuild by hand: python {rg} build", file=sys.stderr)
+
+
+def _bib_after_register(run_id: str, export: bool) -> int:
+    """BB12. Default = NOTICE, not an automatic re-export: `inbox.py bib --ris` resolves every DOI of every run
+    over the network (~0.7 s each, minutes on the real library) and writes outside the run folder, so it must
+    not ride a register call that agents run mid-pipeline. The notice is measured (sources the run cites that
+    the central file lacks), goes to stderr (stdout stays the JSON line), and names the command.
+    `--export-bib` runs that command right now. A failed export never fails the register (already written)."""
+    sys.path.insert(0, str(HERE))
+    import inbox  # noqa: E402
+    try:
+        note = inbox.stale_notice(run_id)
+    except SystemExit as exc:            # LSE_BIB_HOME / NOTES_VAULT unset on this host: nothing to compare
+        print(f"central bibliography: not checked ({exc})", file=sys.stderr)
+        return 0
+    if note:
+        print(note, file=sys.stderr)
+    if export and note:
+        import subprocess
+        rc = subprocess.run([sys.executable, str(HERE / "inbox.py"), "bib", "--ris"], encoding="utf-8",
+                            stdout=sys.stderr).returncode
+        print(f"central bibliography re-export: rc={rc}", file=sys.stderr)
     return 0
 
 
@@ -554,6 +610,7 @@ def cmd_adopt(a) -> int:
     (dst / "record.md").write_text(record_md(run, dst), encoding="utf-8")
     if run["run"]["state"] in ("delivered", "invalidated", "superseded"):
         upsert_index(h, run, dst)
+        _research_graph_after_register("--run", dst)
     print(json.dumps({"adopted": run["run"]["id"], "path": str(dst), "indexed": run["run"]["state"] != "open"}, ensure_ascii=False))
     return 0
 
@@ -1060,6 +1117,7 @@ def main(argv=None) -> int:
     for f in ("purpose", "source_types", "scope", "output_format", "language", "domain", "slug", "model", "was_revision_of"):
         o.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
     r = sub.add_parser("register"); r.add_argument("run_dir")
+    r.add_argument("--export-bib", action="store_true", help="also re-run `inbox.py bib --ris` now when the central bibliography is behind (network, slow)")
     f = sub.add_parser("find"); f.add_argument("terms", nargs="+")
     c = sub.add_parser("check"); c.add_argument("run_dir", nargs="?"); c.add_argument("--registry", action="store_true"); c.add_argument("--json", action="store_true")
     ad = sub.add_parser("adopt"); ad.add_argument("run_dir")

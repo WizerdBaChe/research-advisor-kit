@@ -230,6 +230,124 @@ recall check pending".
 
 ---
 
+## Cross-corpus formats (§9–§12) — shared rules
+
+Built from a run corpus already gathered (≥5 sources; fewer → say so and give an evidence
+table instead). They describe THIS corpus, not the field: "most used", "earliest",
+"untested" are always scoped "in this run (N sources)", and an absence only becomes an
+absence claim after the recall check, as in §8. Every cell is a locator or a marker; a
+relation the reader cannot trace to a span is `[synthesis]`, and a `[synthesis]` row never
+carries a conclusion alone.
+
+## 9. Assumption census
+
+**Use when:** before trusting a consensus — "what does this whole set take for granted,
+and what would break if it were wrong".
+
+**Columns (fixed set):**
+| Column | Content |
+|---|---|
+| `premise` | the premise in one sentence, worded neutrally |
+| `relied_on_by` | ≥2 sources, each with the locator where the premise is used; `stated` (the paper says it) or `implicit` (`[synthesis]`, with the step that needs it) |
+| `tested_by` | source+locator that tests it directly, or `untested in this run` |
+| `if_wrong` | which claims / rows of this run fall, `[synthesis]` |
+| `lineage_note` | filled from §12 when available: relying sources from one group/school vs independent groups |
+
+A premise used by one source only belongs in that paper's paper-distill card
+(`core.assumptions[]`), not here. `untested in this run` enters `gaps`.
+
+**Filled example row:**
+
+| premise | relied_on_by | tested_by | if_wrong | lineage_note |
+|---|---|---|---|---|
+| Adhesive index is stable after cure over device life | Park 2022 §3.1 stated; Lee 2021 Eq. 4 implicit `[synthesis]` | untested in this run | both coupling-loss budgets (Park Table 3, Lee Fig. 5) lose their aging margin | same group (Park is Lee's co-author, §12) — not independent |
+
+## 10. Method census
+
+**Use when:** "which methods does this set use, which are rare, which paper's method is
+weakest".
+
+**Structure:** rows = method classes from the field's own taxonomy (vocabulary ledger), not
+a generic survey/experiment/simulation list unless the field uses it. Columns: `sources`
+(each + locator) · `count` (in this run) · `can_establish` / `cannot_establish` (what this
+method can and cannot show for the caller's question) · `weakest_instance` (source + the
+specific weakness + locator; if a paper-distill card exists, cite its claim-audit evidence
+kind E1–E4 instead of re-judging).
+
+**Filled example row:**
+
+| method | sources | count | can_establish | cannot_establish | weakest_instance |
+|---|---|---|---|---|---|
+| Thermal cycling −40/85 °C | Park 2022 §2.4; Chen 2023 §2.2 | 2 of 7 | survival of N cycles under that profile | humidity-driven drift (no damp heat) | Chen 2023 §2.2: n = 3 parts, no failure criterion `[not stated]` |
+
+A method class with count 0 or 1 is a gap candidate for the caller, worded as in §8.
+
+## 11. Concept lineage
+
+**Use when:** "who introduced / challenged / refined concept X, and is it settled".
+
+**Structure:** one block per concept (≤3 concepts per run unless asked). Each edge:
+`later source --relation--> earlier source`, relation ∈ `introduces` (root only) ·
+`challenges` · `refines` · `applies`, cited from the LATER paper's own text (the sentence
+where it cites the earlier one, with locator). A citation without such a sentence is not an
+edge. The root is `[earliest in this run]`, never "first proposed", unless a review or
+textbook states priority (cite it). End each block with `status:` settled / contested /
+open, citing the rows that decide it.
+
+**Filled example:**
+
+```
+Concept: adiabatic taper criterion
+  Lee 2015  [earliest in this run]  introduces — §2, Eq. 3
+  ├─ Park 2022 --refines--> Lee 2015      "we extend the criterion of [12] to…" (§2.1)
+  └─ Chen 2023 --challenges--> Lee 2015   "the criterion in [8] overestimates…" (§4.2, Fig. 6)
+  status: contested — Park §2.1 vs Chen §4.2; no source in this run reconciles them
+```
+
+## 12. Researcher genealogy
+
+**Use when:** "who are these authors, which groups or schools does this set come from,
+are these results independent", grouping papers for a multi-paper deck, or preparing to
+meet people at a conference. It is about PEOPLE; ideas go to §11.
+
+**Query the research graph first** (`tools/research-graph/rg.py`, INV-9: one spec with this
+section): `rg.py independence <run_id>` gives the clusters and the independence verdict,
+`rg.py who <name>` the affiliations, co-authors and stated advisor edges, and
+`rg.py render section12 <run_id>` this table built from the same edge types. Build rows by hand
+only for persons the graph lacks; a hand row still follows the evidence routes below. Advisor
+candidates the graph lists (AFT) are not edges until the user confirms them.
+
+**Edge types — each carries its own evidence route; an edge without one is not drawn:**
+| Edge | Evidence (route) | Determinable? |
+|---|---|---|
+| `co_author` | byline of a source in this run (locator = the paper) | yes |
+| `affiliation` (dated) | the paper's affiliation block, or OpenAlex author record (`metadata_api`) | yes, per date |
+| `advisor` | a STATED source only: thesis front matter (NDLTD record lists 指導教授), a CV or lab page, a genealogy-database page | yes when stated; co-authorship + shared affiliation is NOT an advisor edge — at most `[synthesis] likely same lab` |
+| `heavy_citation` | group A cites group B ≥3 times across this run's sources (count from reference lists) | yes |
+
+Kinship words (academic sibling / uncle / cousin) are derived from `advisor` edges only.
+Hosts follow `literature-host-policy.json`; a genealogy database not listed there takes the
+unlisted default (one named page, no crawl). Scope is professional record only — names,
+affiliations, publications, stated training — never personal details.
+
+**Output:** node list (researcher or group · affiliation(s) with dates · sources in this
+run) + edge table (from · to · type · evidence) + **independence verdict**: which clusters
+of this run's sources share a group or advisor line, feeding §9's `lineage_note` and the
+credibility rubric's single-cluster check.
+
+**Filled example (edge table):**
+
+| from | to | type | evidence |
+|---|---|---|---|
+| Lee, S. | Park, J. | co_author | Park 2022 byline; Lee 2021 byline |
+| Lee, S. | Placeholder Univ. (2015–) | affiliation | OpenAlex author record (2026-11 read) |
+| Lee, S. | Park, J. | advisor | Park PhD thesis front matter, NDLTD record (指導教授) |
+| Chen group | Lee group | heavy_citation | 4 citations across Chen 2023 + Chen 2024 reference lists |
+
+Independence: Park 2022 and Lee 2021 = one lineage (advisor edge); Chen 2023 independent.
+
+---
+
 ## Query pack — hand-to-user retrieval (P2/P3 point here)
 
 **Use when:** a channel the question needs is `institutional_only` or `agent_banned` in
@@ -280,7 +398,7 @@ query pack §)` — never as "not found".
 ## Result contract — complete Mode 2 example
 
 Returned to a calling skill (English, structure-stable). `findings` embeds one of the
-eight formats above; the other four fields are always present.
+twelve formats above; the other four fields are always present.
 
 ```
 {

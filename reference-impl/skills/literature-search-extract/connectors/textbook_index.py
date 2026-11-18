@@ -32,7 +32,9 @@ Usage:
     python textbook_index.py --build [--root <TEXTBOOKS>] [--only <substring>]
     python textbook_index.py --search <terms...>       titles, TOC entries, glossary terms
     python textbook_index.py --locate <book-substr> --printed <n>    printed page -> PDF page
-    python textbook_index.py --export <book-substr>    chapter Markdown files
+    python textbook_index.py --export <book-substr> [--raw]   chapter Markdown files (cleaned unless --raw)
+    python textbook_index.py --check-toc [<book-substr>]      TOC entry -> page text check (HIT / NEAR / MISS)
+    python textbook_index.py --figures <book-substr>          photographs + captions -> <book>.figures/
     python textbook_index.py --pages [<book-substr>] [--verify | --redo]   write-once page store (verify/pagestore.py)
     python textbook_index.py --pages --pdf <lecture.pdf>                   the same for a PDF outside the library
     python textbook_index.py --stats
@@ -107,11 +109,14 @@ class Book:
         self.text_layer = has_text_layer(self.doc)
 
     def page_text(self, p: int) -> str | None:
-        if self.text_layer:
+        # a mixed-book sidecar (textbook_ocr text_source 'mixed: ...') holds every page
+        # and outranks the layer, which is empty on the scanned pages
+        mixed = bool(self.manifest and str(self.manifest.get("text_source", "")).startswith("mixed"))
+        if self.text_layer and not mixed:
             return self.doc[p - 1].get_text()
         if self.manifest:
             st = self._status.get(p)
-            if st in ("ok", "sparse"):
+            if st in ("ok", "sparse", "text-layer"):
                 f = self.side / "text" / f"{p:04d}.txt"
                 return f.read_text(encoding="utf-8") if f.exists() else ""
             return None
@@ -162,7 +167,46 @@ def find_identity(book: Book) -> dict:
 
 
 # --------------------------------------------------------------------- toc
+def load_toc_sidecar(pdf: Path) -> tuple[list[dict], str] | None:
+    """`<stem>.toc.json` beside the PDF: a contents list a person typed from the
+    book's own contents page, for books whose outline is missing and whose
+    contents page the parsers cannot read (OCR splits columns). It wins over
+    every detected source. Shape: {"source": "...", "entries": [{"level", "title",
+    "printed_page" | "pdf_page"}]}; pdf_page is filled from calibration later."""
+    p = pdf.with_name(pdf.stem + ".toc.json")
+    if not p.exists():
+        return None
+    d = json.loads(p.read_text(encoding="utf-8"))
+    ents = []
+    for e in d.get("entries", []):
+        if not e.get("title") or (e.get("printed_page") is None and e.get("pdf_page") is None):
+            raise ValueError(f"{p.name}: entry needs a title and printed_page or pdf_page: {e}")
+        ents.append({"level": int(e.get("level", 1)), "title": e["title"],
+                     "printed_page": e.get("printed_page"), "pdf_page": e.get("pdf_page")})
+    return ents, f"sidecar toc.json ({d.get('source', 'source not stated')})"
+
+
+def chapter_spans(toc: list[dict], n_pages: int) -> list[tuple[str, int, int]]:
+    """(title, first, last) PDF pages per level-1 entry, covering every page:
+    pages before the first entry become a 'front matter' span instead of being
+    dropped (an entry list that starts at p. 490 used to lose pages 1-489)."""
+    chapters = sorted((e for e in toc if e["level"] == 1 and e.get("pdf_page")), key=lambda e: e["pdf_page"])
+    chapters = chapters or [{"title": "whole book", "pdf_page": 1}]
+    if chapters[0]["pdf_page"] > 1:
+        chapters = [{"title": "front matter", "pdf_page": 1}] + chapters
+    spans = []
+    for k, ch in enumerate(chapters):
+        a = ch["pdf_page"]
+        z = (chapters[k + 1]["pdf_page"] - 1) if k + 1 < len(chapters) else n_pages
+        if z >= a:
+            spans.append((ch["title"], a, z))
+    return spans
+
+
 def build_toc(book: Book) -> tuple[list[dict], str]:
+    side = load_toc_sidecar(book.pdf)
+    if side:
+        return side
     raw = book.doc.get_toc()
     if raw:
         junk = sum(1 for _, t, _ in raw if JUNK_OUTLINE.match(t.strip()))
@@ -460,12 +504,12 @@ def build_glossary(book: Book, toc: list[dict], cal: dict) -> dict:
                 last_key = None
                 # a bare heading line (no pages) may start a main entry with sub-entries following
                 if 2 <= len(ln) <= 60 and not re.search(r"\d", ln):
-                    last_main = ln.rstrip(",，")
+                    last_main = ln.rstrip(",，") or last_main
                 continue
             parsed += 1
             term = m.group("term").strip().rstrip(",，")
             pages = _expand_pages(m.group("pages"))
-            if not pages:
+            if not pages or not term:  # a line that is only punctuation + pages ('，12') has no term
                 continue
             # sub-entry heuristics: leading dash / indentation lost in extraction; keep as "main: sub"
             if term.startswith(("-", "–", "—")) and last_main:
@@ -613,6 +657,12 @@ def search(root: Path, terms: list[str], limit: int = 40) -> int:
                 pp = pages[:8]
                 pdfp = [pdf_of(b["calibration"], p) for p in pp] if off is not None else []
                 hits.append((1, name, "INDEX", term[:70], f"printed {pp} / pdf {pdfp}"))
+        fj = Path(b["path"]).with_name(Path(b["path"]).stem + ".figures") / "figures.json"
+        if fj.exists():
+            for f in json.loads(fj.read_text(encoding="utf-8"))["figures"]:
+                if f["caption"] and all(t in _norm(f["caption"]) for t in q):
+                    hits.append((1, name, "FIGURE", f["caption"][:70],
+                                 f"pdf {f['pdf_page']} / printed {f['printed_page']}  {f['file']}"))
     hits.sort(key=lambda h: (-h[0], h[1]))
     for _, name, kind, what, where in hits[:limit]:
         print(f"{kind:7s} {name:60s} {what:70s} {where}")
@@ -662,7 +712,106 @@ def _slug(s: str, n: int = 50) -> str:
     return s[:n].rstrip("_.") or "untitled"
 
 
-def export(root: Path, book_sub: str) -> int:
+# -------------------------------------------------------------- export cleanup
+# Applied to the EXPORT only: the .ocr text and the text layer stay untouched,
+# so a citation check reads the page as the engine/PDF gave it.
+RUNNING_SHARE = 0.2         # a top/bottom line recurring on >= this share of pages is a running head/foot
+RUNNING_MIN = 3
+EDGE_LINES = 2              # lines examined at each end of a page
+PAGE_NO_LINE = re.compile(r"^[\s.\-–—·•]*(?:\d{1,4}|[ivxlcIVXLC]{1,7}|[0-9IVXLC]{1,4})[\s.\-–—·•]*$")
+HYPHEN_BREAK = re.compile(r"(\S*[a-z])-\n([a-z]\S*)")
+URLISH = re.compile(r"[/.:_=@?&%]")  # a URL or path wrapped at its own hyphen: never joined
+
+
+WORD = re.compile(r"[a-z]+(?:-[a-z]+)*")
+# a second half that is a suffix is a typeset break, never a compound ('charm-ing', 'got-ten')
+SUFFIXES = {"ing", "ings", "ment", "ments", "ness", "tion", "tions", "sion", "ity", "ities", "ten", "ed", "er", "ers",
+            "ly", "ence", "ances", "ance", "able", "ible", "ful", "less", "ous", "ive", "al", "ally", "ism", "ist",
+            "ists", "ize", "ized", "ise", "ture", "tures", "science", "time"}
+
+
+def book_vocab(texts: list[str]) -> set[str]:
+    """Every lower-case word (hyphenated words whole) seen anywhere in the book:
+    the book is its own dictionary for deciding a line-end hyphen."""
+    v: set[str] = set()
+    for t in texts:
+        # fragments of a line-end break ('contem-' / 'plates') are not words of the book
+        for w in WORD.findall(re.sub(r"\S*-\n\S*", " ", t.lower())):
+            v.add(w)
+            if "-" in w:  # 'self-interest' also teaches 'self' and that the book writes 'self-' compounds
+                parts = w.split("-")
+                v.update(parts)
+                v.add(parts[0] + "-")
+    return v
+
+
+def _join_hyphen(m: re.Match, vocab: set[str] | None = None) -> str:
+    """'uni-\\nverse' -> 'universe' when the book spells 'universe' elsewhere;
+    'central-\\nbank' -> 'central-bank' when the book writes 'central-bank' or
+    both halves are words of their own; otherwise joined (a typeset break).
+    A wrapped URL or path is left as it is."""
+    a, b = m.group(1), m.group(2)
+    if URLISH.search(a) or URLISH.search(b.rstrip(".,;:)")):
+        return m.group(0)
+    if vocab:
+        wa = WORD.findall(a.lower())
+        wb = WORD.findall(b.lower())
+        la, fb = (wa[-1] if wa else ""), (wb[0] if wb else "")
+        if (la + fb) in vocab or fb in SUFFIXES:
+            return a + b
+        if f"{la}-{fb}" in vocab or f"{la.split('-')[-1]}-" in vocab or (
+                len(la) >= 3 and len(fb) >= 3 and la.split("-")[-1] in vocab and fb.split("-")[0] in vocab):
+            return f"{a}-{b}"
+    return a + b
+
+
+def _edge_key(line: str) -> str:
+    """A running head minus its page number: 'FIELD AND WAVE 123' and
+    'FIELD AND WAVE 124' share one key."""
+    s = unicodedata.normalize("NFKC", line).lower()
+    s = re.sub(r"[\divxlc]+\s*$|^\s*[\divxlc]+(?=\s)", "", s)
+    s = re.sub(r"\d+", "", s)
+    return re.sub(r"[\s\W_]+", "", s)
+
+
+def _edges(text: str) -> list[str]:
+    ls = [x for x in text.splitlines() if x.strip()]
+    return ls[:EDGE_LINES] + ls[-EDGE_LINES:] if len(ls) > 2 * EDGE_LINES else ls
+
+
+def running_keys(texts: list[str]) -> set[str]:
+    cnt = Counter()
+    for t in texts:
+        cnt.update({k for k in (_edge_key(x) for x in _edges(t)) if len(k) >= 3})
+    floor = max(RUNNING_MIN, RUNNING_SHARE * len(texts))
+    return {k for k, v in cnt.items() if v >= floor}
+
+
+def clean_page(text: str, heads: set[str], vocab: set[str] | None = None) -> tuple[str, int, int]:
+    """Drop running heads/feet and bare page numbers from the first/last
+    EDGE_LINES non-empty lines; resolve a lower-case line-end hyphen with the
+    book's own vocabulary (_join_hyphen; 'STRUCTURE-\\nPRESERVING' stays).
+    Returns (text, lines removed, hyphen joins)."""
+    lines = text.splitlines()
+    idx = [i for i, x in enumerate(lines) if x.strip()]
+    drop = set()
+    for i in idx[:EDGE_LINES] + idx[-EDGE_LINES:]:
+        x = lines[i]
+        if PAGE_NO_LINE.match(x) or _edge_key(x) in heads:
+            drop.add(i)
+    kept = "\n".join(x for i, x in enumerate(lines) if i not in drop)
+    n = 0
+
+    def rep(m: re.Match) -> str:
+        nonlocal n
+        out = _join_hyphen(m, vocab)
+        n += out == m.group(1) + m.group(2)  # counts true joins, not kept compounds
+        return out
+    joined = HYPHEN_BREAK.sub(rep, kept)
+    return joined, len(drop), n
+
+
+def export(root: Path, book_sub: str, raw: bool = False) -> int:
     lib = _load_lib(root)
     target = [b for b in lib["books"] if book_sub.lower() in b["id"].lower()]
     if not target:
@@ -672,16 +821,17 @@ def export(root: Path, book_sub: str) -> int:
         det = json.loads(pdf.with_name(b["id"] + ".index.json").read_text(encoding="utf-8"))
         bk = Book(pdf)
         off = b["calibration"].get("offset")
-        chapters = [e for e in det["toc"] if e["level"] == 1] or [{"title": "whole book", "pdf_page": 1}]
         outdir = pdf.with_name(pdf.stem + ".chapters")
         outdir.mkdir(exist_ok=True)
+        for old in outdir.glob("*.md"):  # a regenerated export; stale chapter names must not linger
+            old.unlink()
+        all_text = [t for t in (bk.page_text(p) for p in range(1, bk.n + 1)) if t]
+        heads = set() if raw else running_keys(all_text)
+        vocab = set() if raw else book_vocab(all_text)
+        tot_drop = tot_join = 0
         written = 0
-        for k, ch in enumerate(chapters):
-            a = ch["pdf_page"]
-            z = (chapters[k + 1]["pdf_page"] - 1) if k + 1 < len(chapters) else bk.n
-            if z < a:
-                continue
-            lines = [f"# {ch['title']}", "",
+        for k, (title, a, z) in enumerate(chapter_spans(det["toc"], bk.n)):
+            lines = [f"# {title}", "",
                      f"- book: {b['identity'].get('title') or b['id']}",
                      f"- authors: {b['identity'].get('authors') or '(not found in file)'}",
                      f"- edition / isbn: {b['identity'].get('edition') or '?'} / {b['identity'].get('isbn') or '?'}",
@@ -697,14 +847,201 @@ def export(root: Path, book_sub: str) -> int:
                     excluded.append(p)
                     lines.append(f"\n{marker} (page excluded by the OCR gate — not included)\n")
                     continue
+                if not raw:
+                    tx, dropped, joins = clean_page(tx, heads, vocab)
+                    tot_drop += dropped
+                    tot_join += joins
                 lines.append(f"\n{marker}\n")
                 lines.append(tx.rstrip())
             if excluded:
                 lines.insert(8, f"- OCR-excluded pages in this chapter: {excluded}")
-            name = f"{k + 1:02d}_{_slug(ch['title'])}.md"
+            lines.insert(8, "- text: raw page text (--raw)" if raw else
+                         "- text: running heads/feet and bare page numbers removed, words hyphenated "
+                         "across a line break joined; the page markers above each page are the citation locators")
+            name = f"{k + 1:02d}_{_slug(title)}.md"
             (outdir / name).write_text("\n".join(lines), encoding="utf-8")
             written += 1
-        print(f"{b['id'][:60]}: {written} chapter files -> {outdir}")
+        print(f"{b['id'][:60]}: {written} chapter files -> {outdir}"
+              + ("" if raw else f"  (cleanup: {len(heads)} running-head keys, {tot_drop} edge lines removed, "
+                                f"{tot_join} hyphen joins)"))
+    return 0
+
+
+# -------------------------------------------------------------- toc check
+TOC_NEAR = 2                # a title found within this many pages counts as NEAR (part dividers, picture openers)
+
+
+def _title_words(title: str) -> list[str]:
+    t = re.sub(r"^\s*(?:\d+|[IVXLC]+)[.\s]+", "", title)
+    words = re.findall(r"[A-Za-z]{4,}", t)
+    return words or [c for c in t if "一" <= c <= "鿿"]
+
+
+def _found(book: Book, p: int, words: list[str]) -> bool:
+    if not (1 <= p <= book.n):
+        return False
+    tx = book.page_text(p) or ""
+    norm = re.sub(r"\s+", "", "\n".join(tx.splitlines()[:15])).lower()
+    hit = sum(1 for w in words if w.lower() in norm)
+    return bool(words) and hit * 2 >= len(words)
+
+
+def check_toc(root: Path, book_sub: str) -> int:
+    """Every TOC entry is looked up on its resolved PDF page: HIT (the title's
+    words are in the page's first lines, or the next page's — a picture opener),
+    NEAR (found within TOC_NEAR pages: a part divider before the chapter title),
+    MISS (not found nearby; the entry's page is suspect). Exit 1 on any MISS."""
+    lib = _load_lib(root)
+    books = [b for b in lib["books"] if (not book_sub or book_sub.lower() in b["id"].lower())]
+    if not book_sub:
+        books = [b for b in books if str(b.get("toc_source", "")).startswith("sidecar")]
+    if not books:
+        print("no matching book (without a substring only books with a toc.json sidecar are checked)")
+        return 1
+    misses = 0
+    for b in books:
+        pdf = Path(b["path"])
+        det = json.loads(pdf.with_name(b["id"] + ".index.json").read_text(encoding="utf-8"))
+        bk = Book(pdf)
+        c = Counter()
+        for e in det["toc"]:
+            p, words = e["pdf_page"], _title_words(e["title"])
+            # a Latin title cannot be looked up on a Chinese page (a translation whose
+            # toc.json carries the original's titles): not determinable -> UNCHECKED, never MISS
+            page = bk.page_text(p) or ""
+            cjk = len(re.findall(r"[一-鿿]", page)) / max(1, len(re.sub(r"\s+", "", page)))
+            if words and words[0].isascii() and cjk > 0.3:
+                c["unchecked"] += 1
+                continue
+            if _found(bk, p, words) or _found(bk, p + 1, words):
+                c["hit"] += 1
+                continue
+            near = next((q for d in range(1, TOC_NEAR + 1) for q in (p + d + 1, p - d) if _found(bk, q, words)), None)
+            if near is not None:
+                c["near"] += 1
+                print(f"  NEAR {b['id'][:40]}: {e['title'][:50]!r} pdf {p} -> title found on pdf {near}")
+            else:
+                c["miss"] += 1
+                print(f"  MISS {b['id'][:40]}: {e['title'][:50]!r} pdf {p} (printed {e.get('printed_page')})")
+        misses += c["miss"]
+        print(f"{b['id'][:60]}: {len(det['toc'])} entries  hit {c['hit']}  near {c['near']}  miss {c['miss']}"
+              + (f"  unchecked {c['unchecked']} (title language differs from the page text)" if c["unchecked"] else ""))
+    return 1 if misses else 0
+
+
+# -------------------------------------------------------------- figures
+# Scanned books hold every page as one image, so "embedded images" are whole
+# pages. A figure is found instead as a large block of MID-TONE pixels (a
+# photograph's greys), which printed text — near-black on near-white, thin —
+# does not form once the mask is opened. Line drawings are bimodal and are
+# NOT found by this rule (stated in the figures.json 'method').
+FIG_DPI = 150
+FIG_MIN_AREA = 0.03         # share of the page area
+FIG_MIN_SIDE = 0.12         # share of page width / height for both sides
+CAPTION_BAND = 0.07         # share of page height searched below (then above) a figure for its caption
+
+
+TEXT_GX = 18                # mean |horizontal gradient| above this ...
+TEXT_MID = 0.2              # ... with a mid-tone share below this = a dense text block, not a picture
+CAPTION_MAX = 140           # a caption is short; a longer band read is body text
+
+
+def _text_block(region) -> bool:
+    """Dense small type blurs into mid-grey and passes the mid-tone mask; on the
+    RAW pixels it is near-black strokes on near-white with sharp edges.
+    Measured on 24 Book 1 detections 2026-11-16: text gx 24.9-29.0, mid 0.08-0.10;
+    photographs gx 3.6-14.0, mid 0.26-0.98."""
+    import numpy as np
+    a = region.astype(np.int16)
+    gx = float(np.abs(np.diff(a, axis=1)).mean())
+    mid = float(((a > 70) & (a < 190)).mean())
+    return gx > TEXT_GX and mid < TEXT_MID
+
+
+def find_figures(gray) -> list[tuple[int, int, int, int]]:
+    import cv2
+    import numpy as np
+    h, w = gray.shape
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    mid = ((blur > 40) & (blur < 215)).astype(np.uint8) * 255
+    k = max(3, w // 150)
+    mid = cv2.morphologyEx(mid, cv2.MORPH_OPEN, np.ones((k, k), np.uint8))
+    mid = cv2.morphologyEx(mid, cv2.MORPH_CLOSE, np.ones((k * 4, k * 4), np.uint8))
+    n, _, stats, _ = cv2.connectedComponentsWithStats(mid)
+    out = []
+    for i in range(1, n):
+        x, y, bw, bh, area = stats[i]
+        if bw * bh >= FIG_MIN_AREA * w * h and bw >= FIG_MIN_SIDE * w and bh >= FIG_MIN_SIDE * h \
+                and area >= 0.4 * bw * bh and not _text_block(gray[y:y + bh, x:x + bw]):
+            out.append((int(x), int(y), int(x + bw), int(y + bh)))
+    return sorted(out, key=lambda r: (r[1], r[0]))
+
+
+CAPTION_INSIDE = 0.12       # share of the figure height read at its own bottom edge first
+
+
+def read_caption(page, bbox, page_h: int, heads: set[str], strip: Path, tbo) -> str:
+    """The caption of a scanned figure is often small type set tight under the
+    picture, so the mid-tone block swallows it (Nature of Order, 2026-11-16).
+    Bands tried in order: the figure's own bottom CAPTION_INSIDE, the band just
+    below, the band just above. A band's text is a caption only when it is
+    short, plausible text and not a running head; no band qualifying gives ''
+    (precision over recall)."""
+    x0, y0, x1, y1 = bbox
+    band = int(CAPTION_BAND * page_h)
+    inside = int(CAPTION_INSIDE * (y1 - y0))
+    for cy0, cy1 in ((y1 - inside, y1), (y1, min(page_h, y1 + band)), (max(0, y0 - band), y0)):
+        if cy1 - cy0 < 10:
+            continue
+        page.get_pixmap(dpi=FIG_DPI, colorspace=fitz.csGRAY,
+                        clip=fitz.Rect(x0, cy0, x1, cy1) * (72 / FIG_DPI)).save(str(strip))
+        text = tbo.run_rapidocr([(1, strip)])[1]["text"].replace("\n", " ").strip()
+        strip.unlink(missing_ok=True)
+        if 8 <= len(text) <= CAPTION_MAX and _edge_key(text) not in heads and tbo.quality(text)[1] >= 0.7:
+            return text
+    return ""
+
+
+def figures(root: Path, book_sub: str) -> int:
+    """Write <book>.figures/ : one PNG per detected figure + figures.json with
+    page, printed page, bbox and the caption text read (RapidOCR, read_caption).
+    Captions become searchable."""
+    import numpy as np
+    sys.path.insert(0, str(HERE))
+    import textbook_ocr as tbo
+    lib = _load_lib(root)
+    target = [b for b in lib["books"] if book_sub.lower() in b["id"].lower()]
+    if not target:
+        print("no such book"); return 1
+    for b in target:
+        pdf = Path(b["path"])
+        doc = fitz.open(pdf)
+        outdir = pdf.with_name(pdf.stem + ".figures")
+        outdir.mkdir(exist_ok=True)
+        for old in outdir.glob("*.png"):
+            old.unlink()
+        bk = Book(pdf)
+        heads = running_keys([t for t in (bk.page_text(p) for p in range(1, bk.n + 1)) if t])
+        rows = []
+        for i in range(doc.page_count):
+            pix = doc[i].get_pixmap(dpi=FIG_DPI, colorspace=fitz.csGRAY)
+            gray = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width)
+            for k, (x0, y0, x1, y1) in enumerate(find_figures(gray)):
+                name = f"p{i + 1:04d}_{k + 1}.png"
+                full = doc[i].get_pixmap(dpi=FIG_DPI, clip=fitz.Rect(x0, y0, x1, y1) * (72 / FIG_DPI))
+                full.save(str(outdir / name))
+                caption = read_caption(doc[i], (x0, y0, x1, y1), pix.height, heads, outdir / "_strip.png", tbo)
+                pr = printed_of(b["calibration"], i + 1) if b["calibration"].get("offset") is not None else None
+                rows.append({"file": name, "pdf_page": i + 1, "printed_page": pr,
+                             "bbox_px": [x0, y0, x1, y1], "dpi": FIG_DPI, "caption": caption})
+        meta = {"schema": "textbook-index/figures@1", "source_sha256": b["sha256"],
+                "method": "mid-tone block detection (photographs), dense text blocks rejected on raw-pixel "
+                          "edge energy; line drawings are not detected; caption = RapidOCR text of <= "
+                          f"{CAPTION_MAX} chars in a band below, else above, the figure, never a running head; "
+                          "empty when none qualifies (precision over recall)",
+                "created": datetime.now(timezone.utc).isoformat(timespec="seconds"), "figures": rows}
+        (outdir / "figures.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"{b['id'][:60]}: {len(rows)} figures, {sum(1 for r in rows if r['caption'])} with caption -> {outdir}")
     return 0
 
 
@@ -818,6 +1155,83 @@ def selftest(root: Path) -> int:
     m = GLOSSARY_LINE.match("absorption coefficient, 45, 102–104")
     if not m or _expand_pages(m.group("pages")) != [45, 102, 103, 104]:
         print("FAIL glossary line parse"); ok = False
+    # 4. chapter spans cover every page: a toc whose first chapter starts at p. 490
+    # must keep pages 1-489 as front matter (the old export dropped them)
+    spans = chapter_spans([{"level": 1, "title": "Chapter 7", "pdf_page": 490}], 491)
+    covered = sum(z - a + 1 for _, a, z in spans)
+    print(f"  chapter-span control: {spans} covers {covered}/491 pages")
+    if covered != 491 or spans[0] != ("front matter", 1, 489):
+        print("FAIL chapter-span control: pages before the first entry were dropped"); ok = False
+    # 5. toc sidecar: a typed contents list wins and a bad entry is refused
+    import tempfile  # noqa: PLC0415
+    with tempfile.TemporaryDirectory() as td:
+        fake_pdf = Path(td) / "Book.pdf"
+        (Path(td) / "Book.toc.json").write_text(json.dumps(
+            {"source": "test", "entries": [{"title": "1. One", "printed_page": 27}]}), encoding="utf-8")
+        got = load_toc_sidecar(fake_pdf)
+        print(f"  toc sidecar control: {got}")
+        if not got or got[0][0]["printed_page"] != 27 or not got[1].startswith("sidecar"):
+            print("FAIL toc sidecar control: typed entry not loaded"); ok = False
+        (Path(td) / "Book.toc.json").write_text(json.dumps({"entries": [{"title": "no page"}]}), encoding="utf-8")
+        try:
+            load_toc_sidecar(fake_pdf)
+            print("FAIL toc sidecar control: entry without a page was accepted"); ok = False
+        except ValueError:
+            print("  toc sidecar negative control refused an entry without a page")
+    # 6. export cleanup: running head + page number removed, body kept, lower-case
+    # hyphen break joined, upper-case compound kept
+    # body lines differ in WORDS from page to page, as in a book (a body line that
+    # recurs on 20 % of pages is indistinguishable from a running head by design)
+    topics = ["dipole", "charge", "field", "wave", "medium", "boundary", "current", "potential"]
+    pages = [f"FIELD AND WAVE ELECTROMAGNETICS {100 + k}\nOn the {topics[k]} we see the mo-\nment of a {topics[k]}.\n"
+             f"STRUCTURE-\nPRESERVING {topics[k]} ends.\n{100 + k}" for k in range(8)]
+    heads = running_keys(pages)
+    cleaned, dropped, joins = clean_page(pages[3], heads)
+    print(f"  cleanup control: before {pages[3]!r}\n                   after  {cleaned!r} (dropped {dropped}, joins {joins})")
+    if ("ELECTROMAGNETICS" in cleaned or "103" in cleaned.splitlines()[-1] or "moment of a wave" not in cleaned
+            or "STRUCTURE-\nPRESERVING" not in cleaned or "On the wave" not in cleaned):
+        print("FAIL cleanup control"); ok = False
+    once = ["A unique opening line\nbody text\nmore body\nand more\nend"] + ["x\ny\nz\nw\nv"] * 7
+    if clean_page(once[0], running_keys(once))[1] != 0:
+        print("FAIL cleanup negative control: a line seen once was removed as a running head"); ok = False
+    url = "see https://www.example.com/credit-\nsuisse-report and the uni-\nverse"
+    got = clean_page(url, set())[0]
+    print(f"  hyphen/url control: {got!r}")
+    if "credit-\nsuisse" not in got or "universe" not in got:
+        print("FAIL hyphen control: a wrapped URL was joined, or a prose word was not"); ok = False
+    vocab = book_vocab(["the universe is large", "a central bank and a bank that is central", "long-term view"])
+    got = clean_page("the uni-\nverse, the central-\nbank, the long-\nterm, the mad-\nness", set(), vocab)[0]
+    print(f"  book-dictionary control: {got!r}")
+    if got != "the universe, the central-bank, the long-term, the madness":
+        print("FAIL book-dictionary hyphen control"); ok = False
+    # 7. figure detection: a mid-tone block is found, a page of text-like strokes is not
+    import numpy as np  # noqa: PLC0415
+    canvas = np.full((1200, 900), 255, np.uint8)
+    canvas[100:500, 100:700] = 128
+    text = np.full((1200, 900), 255, np.uint8)
+    for r in range(80, 1100, 28):
+        text[r:r + 3, 60:840] = 0
+    # real dense-text page (Nature of Order Book 1, pdf p.95: a text block the
+    # mid-tone mask alone took for a picture, 2026-11-16) — the rule must remove it
+    global TEXT_GX
+    nofo = next((p for p in root.rglob("*.pdf") if "The Phenomenon of Life" in p.name), None)
+    if nofo:
+        pg = fitz.open(nofo)[94]
+        pix = pg.get_pixmap(dpi=FIG_DPI, colorspace=fitz.csGRAY)
+        g = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width)
+        with_rule = find_figures(g)
+        keep, TEXT_GX = TEXT_GX, 1e9
+        without = find_figures(g)
+        TEXT_GX = keep
+        print(f"  text-block control (B1 p.95): mask alone {len(without)} region(s), with rule {len(with_rule)}")
+        if len(with_rule) >= len(without):
+            print("FAIL text-block control: the rule removed nothing on a known text-block page"); ok = False
+    else:
+        print("  (Book 1 not found — text-block control SKIPPED, not passed)")
+    f1, f0 = find_figures(canvas), find_figures(text)
+    print(f"  figure control: grey block -> {f1}; text strokes -> {f0}")
+    if len(f1) != 1 or f0:
+        print("FAIL figure detection control"); ok = False
     print("selftest", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
@@ -862,6 +1276,10 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--locate", help="book substring")
     ap.add_argument("--printed", type=int)
     ap.add_argument("--export", help="book substring")
+    ap.add_argument("--raw", action="store_true", help="with --export: keep running heads, page numbers and hyphen breaks")
+    ap.add_argument("--check-toc", nargs="?", const="", metavar="BOOK",
+                    help="check TOC entries against page text (default: every book with a toc.json sidecar)")
+    ap.add_argument("--figures", metavar="BOOK", help="extract photographs + captions into <book>.figures/")
     ap.add_argument("--stats", action="store_true")
     ap.add_argument("--notes", nargs="?", const="", metavar="BOOK", help="write <book>.md reading maps (all books, or one)")
     ap.add_argument("--pages", nargs="?", const="", metavar="BOOK",
@@ -889,7 +1307,11 @@ def main(argv: list[str]) -> int:
             print("--locate needs --printed"); return 2
         return locate(root, a.locate, a.printed)
     if a.export:
-        return export(root, a.export)
+        return export(root, a.export, a.raw)
+    if a.check_toc is not None:
+        return check_toc(root, a.check_toc)
+    if a.figures:
+        return figures(root, a.figures)
     if a.stats:
         return stats(root)
     ap.print_usage()

@@ -258,6 +258,28 @@ Run these by hand before P5, and state the result:
   beats five `[abstract]` rows.
 - **Single-cluster evidence.** Run `credibility-rubric.md` §6 — one group, one
   citation bubble, one language is not consensus.
+- **Unknown proper nouns queried, not forwarded** (the query runs at P4, when the
+  name is met; this line is the pre-P5 confirmation that it did). A product,
+  instrument, model, group or codename the sources use without defining is run
+  through `python -X utf8 ~/.claude/tools/term-log/termlog.py query --terms-file
+  <scratch file, one name per line> --log <absolute run folder>/<run_id>-term-log.md
+  --card literature` before the deliverable calls it unknown (names from a source
+  never go on the command line; the run folder sits in the vault, so the log needs a
+  card and a run-unique name; `--card` writes it on creation). On exit 2 (tool
+  refused) the deliverable says "not queried (tool refused: <reason>)", never unknown. Rule: `ops/20-dispatch.md` §2 (registry `DISPATCH_BRIEF_FACTS`), which
+  also binds the brief of any worker dispatched over the sources. (`termlog.py
+  check` applies only to a deliverable that writes the 「未經回憶查詢」 mark; this
+  skill's templates do not.)
 - **Retrieval currency.** For any claim whose source can change under the
   citation (legal status, a live database record, a web page, a moving standard),
   record the retrieval date. A stable DOI'd article needs none.
+
+## Reference-list tool (apabib)
+
+(Moved verbatim from SKILL.md Reference map.)
+
+- **Published reference lists come from the tool, never from typing** — `python verify/apabib.py <DOI|arXiv id>... [--run <run_dir>] [--out f.md]`:
+  APA 7 entries from Crossref / DataCite / the arXiv API (fetchsrc HTTP layer + host policy; DataCite is an unlisted host, one call per invocation);
+  with `--run` a diff against that run's ledger `expect_*` fields (author order, year, title; N-012). An id whose record cannot be fetched is
+  printed as `需人工確認 (needs manual check)` with no entry body (exit 3). Titles are printed as registered; sentence case is a human step.
+  Tests: `loop/tests/test_apabib.py`.

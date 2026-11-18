@@ -84,6 +84,13 @@ to it, do not reset it):
                  file, never a heredoc carrying JS. Second instance of the
                  class -> a THIRD makes it the next narrowing candidate
                  (property-access form `\.dataset\.key\b` is determinable).
+ 11. 2026-11-09  a remote URL ending `/.env` in a read-only HTTP probe of the
+                 user's own site (report_fp row 7dc612). CLEARED by pass 3: a
+                 `<scheme>://` URL other than `file://` is not gated.
+ 12. 2026-11-09  the third `dataset` property-access instance (feedback pool,
+                 trigger of FP-10 met). CLEARED by pass 3: `\.dataset\.key` is
+                 excluded; a bare `dataset.key` file name still denies.
+                 Pass 3 by user ruling 2026-11-09 (decision sheet B1).
   Numbering is the order of logging: FP-6..8 happened before FP-4/5 but sat
   only in telemetry/hook-false-positives.jsonl until 2026-10-04.
 
@@ -133,8 +140,10 @@ that branch), or a glob of a credential extension is observed feeding a reader
 names-only listings as must-pass cases first).
 
 Proof-of-life: `python tools/secret-guard-test/test_secret_file_guard.py`
-(two-sided: 50 must-deny, 53 must-pass — property 2 added 14 and 23, narrowing
-pass 2 added 14 and 9, the property-2 masking fix P2-1 added 10 and 3).
+(two-sided: 57 must-deny, 57 must-pass — property 2 added 14 and 23, narrowing
+pass 2 added 14 and 9, the property-2 masking fix P2-1 added 10 and 3, narrowing
+pass 3 added 7 and 4; the main build blocks 3 of pass 3's must-pass cases, and pass 3's
+first draft leaked `C://x/.env`, `D://x/.env`, `~/.dataset.key` — review 2026-11-09).
 """
 import json
 import re
@@ -153,6 +162,11 @@ except Exception:           # a guard must not stop guarding if telemetry breaks
 # `conda env`, or `dict.keys()`.
 SECRET_TOKEN = re.compile(
     r"""(?:^|[\s"'=<>|(,;&])            # start, or a shell/arg boundary
+        # A remote URL path (`https://host/.env`) names a page, not a local file
+        # (FP-11, narrowing pass 3, user ruling 2026-11-09). `file://` stays gated:
+        # curl reads a local file through it.
+        # A scheme has 2+ chars: `C://x/.env` is a drive path with a doubled slash, still gated.
+        (?!(?!file:)[A-Za-z][\w+.-]+://)
         (?:[~\w.\\/:+-]*[\\/])?         # optional leading directory part (~ incl.)
         (
             \.env(?!\.(?:example|sample|template)\b)[\w.-]*
@@ -161,7 +175,9 @@ SECRET_TOKEN = re.compile(
           # Narrowed 2026-08-27 (FP-3): a bare `[\w.-]*\.key` matched the SQL
           # alias `i.key` and blocked a database query. Real key files are
           # `server.key` / `client.key` / `certs/x.key`, never one letter.
-          | [\w.-]{3,}\.key
+          # Narrowed 2026-11-09 (FP-7/10/12, pass 3): the JS property access
+          # `<obj>.dataset.key` is not a file; a bare `dataset.key` still is.
+          | [\w.-]{3,}(?<!\w\.dataset)\.key
           | credentials?\.json
           | secrets?\.json
           | token\.json

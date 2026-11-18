@@ -616,6 +616,10 @@ def cmd_ingest(a) -> int:
             print("  nothing to do")
         if not a.apply and any(r["action"] in ("FILE", "FILE+REGISTER", "REGISTER") for r in plan):
             print("dry-run: nothing moved or registered — re-run with --apply")
+    if a.apply and any(v == 0 for r in plan for v in r.get("registered", {}).values()):
+        n = stale_notice()          # a full text arrived: the bibliography's access notes are behind
+        if n:
+            print(n)
     bad = [r for r in plan if r["action"] in ("UNRESOLVED", "COLLISION", "DUPLICATE")
            or any(v != 0 for v in r.get("registered", {}).values())]
     return 3 if bad else 0
@@ -692,6 +696,15 @@ def build_bib(agg: dict, runs: list[dict]) -> dict:
             item["manual"] = {"type": "JOUR", "title": item["title"], "authors": s["authors"],
                               "year": s["year"], "venue": s["venue"], "url": f"https://arxiv.org/abs/{ident}"}
         items.append(item)
+    # Two different sources can share a cite_as-derived id (Mu2019 x2); the exporter skips a repeated id
+    # as a duplicate, so a collision would drop a real paper. Suffix b, c, ... in the sorted order.
+    seen: dict = {}
+    for item in items:
+        base = item["id"]
+        n = seen.get(base, 0)
+        seen[base] = n + 1
+        if n:
+            item["id"] = f"{base}{chr(ord('a') + n)}"
     return {
         "schema": "lse-bib/central@1", "generated": now_iso(), "tool": TOOL,
         "home": str(home()), "n_runs": len(runs), "n_items": len(items),
@@ -700,6 +713,48 @@ def build_bib(agg: dict, runs: list[dict]) -> dict:
                 "python ../scripts/zotero_ris_export.py <this file> --collection-name <name> --out-dir <dir>",
         "items": items,
     }
+
+
+def item_key(item: dict) -> str:
+    """doi:<lower> / arxiv:<id> of a build_bib item (the same keys source_key() produces)."""
+    if item.get("doi"):
+        return "doi:" + str(item["doi"]).lower()
+    m = re.search(r"arxiv\.org/abs/(.+)$", str((item.get("manual") or {}).get("url", "")))
+    return "arxiv:" + m.group(1) if m else "id:" + str(item.get("id"))
+
+
+def bib_staleness(run_id: str | None = None) -> dict:
+    """Is the central bibliography (<Bibliography>/evidence-runs-bib.json) behind the runs on disk?
+    Offline and read-only. A source is `missing` when the run set would list it and the file does not,
+    `changed` when its access level moved (a full text arrived: ingest). run_id restricts the check to
+    the sources that run cites. BB12 (R20): the 2026-11-08 run was absent from a bibliography last
+    exported 2026-09-23 because nothing ever said so."""
+    runs = read_home()
+    want = {item_key(i): i for i in build_bib(aggregate(runs, read_reflux()), runs)["items"]
+            if run_id is None or run_id in i["_runs"]}
+    f = bib_dir() / "evidence-runs-bib.json"
+    have = {}
+    if f.exists():
+        try:
+            have = {item_key(i): i for i in json.loads(f.read_text(encoding="utf-8")).get("items", [])}
+        except ValueError:
+            have = {}
+    missing = sorted(k for k in want if k not in have)
+    changed = sorted(k for k in want if k in have and have[k].get("_access") != want[k]["_access"])
+    return {"file": str(f), "exists": f.exists(), "missing": missing, "changed": changed,
+            "stale": bool(missing or changed or not f.exists())}
+
+
+def stale_notice(run_id: str | None = None) -> str:
+    """'' when current; else the notice plus the exact command that refreshes it."""
+    s = bib_staleness(run_id)
+    if not s["stale"]:
+        return ""
+    why = ("no bibliography file yet" if not s["exists"] else
+           f"{len(s['missing'])} source(s) missing, {len(s['changed'])} with a changed access level")
+    return (f"NOTICE: central bibliography is stale ({why}): {s['file']}\n"
+            f"  refresh (network, ~0.7 s per DOI, writes under {bib_dir()} only): "
+            f"python {Path(__file__).resolve()} bib --ris")
 
 
 # ---------------------------------------------------------------- dashboard html

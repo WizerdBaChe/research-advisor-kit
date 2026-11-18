@@ -38,9 +38,43 @@ A whole-book summary is failure mode #3 with a bigger surface — it is never pr
   `excluded_pages`** — user ruling 2026-09-13: wrong data is worse than no data. A
   question that lands on an excluded page is a `gaps` entry ("page N excluded by the OCR
   gate: <reason>; hand-to-user"), never a guess from neighbouring pages.
-- `--search <terms>` ranks book titles, TOC entries and index terms; `--locate <book>
-  --printed <n>` turns a printed page into a PDF page; `--export <book>` writes one
-  Markdown file per chapter for the user's own secondary-analysis tools.
+- **OCR engine per page class (2026-11-16, measured by `connectors/ocr_bench.py` on
+  `ocr_bench_gt.json`; reference text model-transcribed, `checked_by: null`).**
+  - `--engine winrt` stays the default: English body text (character error rate (CER)
+    0.003) and low-resolution Chinese scans (0.013).
+  - Use `--engine rapidocr` for contents pages with dot leaders (0.012 against winrt's 0.188)
+    and for two-column pages.
+  - `--engine vlm` (a llama.cpp `llama-server` with the official PaddleOCR-VL-1.5 GGUF and its
+    mmproj) is best on Chinese formulas (0.071 against winrt's 0.363). It is not the default:
+    - It loops on dot leaders.
+    - On a whole handbook 7/55 pages were excluded, against 0 for winrt.
+    - It emits LaTeX.
+  - The gate now also excludes a repetition loop and mirrored words.
+  - A book whose layer covers SOME pages is OCRed on the rest only; its manifest marks the
+    others `text-layer`.
+- `--search <terms>` ranks book titles, TOC entries, index terms and figure captions.
+- `--locate <book> --printed <n>` turns a printed page into a PDF page.
+- `--export <book>` writes one Markdown file per chapter for the user's own
+  secondary-analysis tools.
+  - Pages before the first TOC entry become a `front matter` file, never dropped.
+  - The export is CLEANED: running heads/feet and bare page numbers are removed, and a line-end
+    hyphen is resolved with the book's own vocabulary. `--raw` turns the cleanup off.
+  - The `[p. N]` markers stay. The `.ocr` text and the text layer are never changed, so a
+    citation check reads the page itself.
+- `--check-toc [<book>]` looks every TOC entry up on its page and reports:
+  - HIT: the title is on the page.
+  - NEAR: the title is within ±2 pages, for example on a part divider.
+  - MISS: the title is not found nearby.
+  - UNCHECKED: a Latin title on a Chinese page, which the check cannot rule on.
+- `--figures <book>` writes `<book>.figures/` with the photographs and short captions.
+  - Line drawings are not detected.
+  - A figure without a caption gets an empty caption.
+- A book with no PDF outline whose contents page the parser cannot read (OCR splits the
+  columns, as on The Nature of Order) gets a `<book>.toc.json` sidecar beside the PDF,
+  typed from the page image: `{"source", "entries": [{"level", "title", "printed_page" |
+  "pdf_page"}]}`. It outranks every detected TOC; after `--build`, run `--check-toc`
+  for the book: a NEAR is usually a part-divider page two pages before the title, a MISS
+  is either a wrong page or a title the OCR misread (look at the page image).
 - `connectors/local_find.py "<regex>"` searches the RUNNING TEXT of every chapter export
   and of earlier literature runs (`NOTES_VAULT/literature/**.md`) in one call. Each textbook
   hit carries edition, chapter file and the nearest `[p. N]` marker, flagged when the

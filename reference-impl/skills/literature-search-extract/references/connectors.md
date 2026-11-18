@@ -259,3 +259,13 @@ unavailable, what coverage that costs, and route to the next rung —
 `gaps` gets the entry, `search_trail` gets the substitution. This is the
 existing degradation ladder in `search-sources.md`, with connectors as its
 new top rung.
+
+## Host access policy before any fetch
+
+(Moved verbatim from SKILL.md P2.)
+
+**Host access policy before any fetch.** `connectors/access_policy.py --url <u> --check`
+says which surface may touch which host (`~/.claude/hooks/literature-host-policy.json`); a
+refused or challenged host is handed to the user as a named DOI/URL + query pack, never
+retried through another User-Agent, browser or profile. Cited text comes ONLY through `verify/fetchsrc.py`
+(manifest + per-host/run caps; `--run` may sit in the caller's folder; PDFs stay in memory).
