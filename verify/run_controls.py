@@ -109,7 +109,18 @@ def main() -> int:
     # K2 unit suites
     PASSED_RE = r"\d+ (passed|failed)"  # outside the f-string: a backslash there is a SyntaxError before 3.12
     rc, out = run(["-m", "pytest", "-q", "-p", "no:cacheprovider", str(LSE / "loop" / "tests")], cwd=RI)
-    report("K2", rc == 0, f"loop/tests pytest: exit {rc}, {last(out, PASSED_RE).strip('= ')}")
+    tally = last(out, PASSED_RE).strip("= ")
+    # Expected skips: the 2 live-registry tests of test_apabib.py, plus 1 test that needs PyYAML when it is absent
+    # (docs/EVIDENCE.md K2 row). Any failure, or any other skip count, is a mismatch.
+    try:
+        import yaml  # noqa: F401
+        want_skip = 2
+    except ImportError:
+        want_skip = 3
+    m_skip = re.search(r"(\d+) skipped", tally)
+    got_skip = int(m_skip[1]) if m_skip else 0
+    report("K2", rc == 0 and "failed" not in tally and got_skip == want_skip,
+           f"loop/tests pytest: exit {rc}, {tally} (expected {want_skip} skipped)")
     rc, out = run(["-I", str(RI / "hooks" / "tests" / "test_literature_host_guard.py")])
     report("K3", rc == 0 and "ALL TESTS PASSED" in out, f"test_literature_host_guard.py: exit {rc}, '{last(out, '.')}'")
     rc, out = run(["-I", str(RI / "tools" / "secret-guard-test" / "test_secret_file_guard.py")])

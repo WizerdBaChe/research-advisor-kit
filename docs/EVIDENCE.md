@@ -14,7 +14,7 @@
 **控制項不讀已安裝的 `~/.claude`**：`run_controls.py` 把 `CLAUDE_CONFIG_DIR` 指到暫存區裡的空資料夾、`LSE_HOST_POLICY` 指到 repo 內的政策檔。
 v1.0.1 以前 K1a、K6 會去讀機器上已安裝的政策檔，所以在「沒裝過的新機器」上是 17/19（同一則回饋量到；本機用空的假家目錄重現）。
 v1.1.0 的紀錄（`verify/fresh_clone_run.txt`）是全新 clone、`HOME`／`USERPROFILE`／`CLAUDE_CONFIG_DIR` 都指到空資料夾的結果：19/19，另外各封鎖一個選用模組
-（PyMuPDF、rapidocr、cv2、numpy、PIL、yaml；以 venv 內的 `sitecustomize.py` 讓它們的 import 失敗）各跑一次，皆為 19/19。
+（PyMuPDF、rapidocr、cv2、numpy、PIL、yaml；以 venv 內的 sitecustomize 掛鉤讓它們的 import 失敗）各跑一次，皆為 19/19。
 差異只有兩處：封鎖 PyMuPDF 時 K1k 為 87 例並註明略過頁指標案例；封鎖 yaml 時 K2 為 75 passed、3 skipped（有一例需要 yaml，被略過而不是失敗）。
 
 **驗收控制（`verify/controls_run.txt`）：19 of 19 ok，2 undetermined（不計入）。** 每一行都印出實際斷言的值：
@@ -32,7 +32,7 @@ v1.1.0 的紀錄（`verify/fresh_clone_run.txt`）是全新 clone、`HOME`／`US
 | K1i | `fetchsrc.py --selftest`：0 broken，calibrated | 內含（被拒主機、挑戰頁、每主機上限，皆為 stub 傳輸） |
 | K1j | `staleclaim.py --selftest`：8 cases（5 must-pass / 3 must-fail），0 broken | 內含 |
 | K1k | `citecheck.py --selftest --offline`：107 cases（53 must-pass / 54 must-fail），0 broken | 內含（v1.0.2 新增 6 例：全空白 span、壞掉的帳本列、空帳本、缺 run.json、`--json` 輸出是純 JSON、帶 BOM 的帳本；各在舊版會失敗） |
-| K2 | `loop/tests` pytest：76 passed, 2 skipped | 內含（v1.0.2 新增：citecheck.json 有 FAIL 時 register 必須拒絕；帶 BOM 的帳本不算壞列。v1.1.0 新增 24 例，來自 `test_apabib.py`、`test_bib_stale.py`、`test_ris_fill.py`；其中 2 例會對 Crossref 連網，預設略過（`LSE_LIVE_TESTS=1` 才跑），所以計 2 skipped；三個檔案有宣告修改，見 BUILD-SPEC §9 E8–E10） |
+| K2 | `loop/tests` pytest：77 passed, 2 skipped（沒裝 PyYAML：76 passed, 3 skipped；K2 斷言恰好這個略過數且無失敗） | 內含（v1.0.2 新增：citecheck.json 有 FAIL 時 register 必須拒絕；帶 BOM 的帳本不算壞列。v1.1.0 新增 25 例（含 `ingest` 通知在沒有書目資料夾時不崩潰的一例），來自 `test_apabib.py`、`test_bib_stale.py`、`test_ris_fill.py`；其中 2 例會對 Crossref 連網，預設略過（`LSE_LIVE_TESTS=1` 才跑），所以計 2 skipped；三個檔案有宣告修改，見 BUILD-SPEC §9 E8–E10） |
 | K3 | `test_literature_host_guard.py`：ALL TESTS PASSED | 內含（D-* 拒絕案例；v1.1.0 新增 N-13 至 N-15：被拒呼叫不留紀錄、花掉的通知額度壓住通知但兩次呼叫仍計次、兩個超額主機各一則通知，需要隨附的 `hooks/notice_budget.py`） |
 | K4 | `test_secret_file_guard.py`：must-deny 57、must-pass 57，failures 0（另有 3 個 undetermined、3 個 unclassifiable shape 走 fail-open，皆不計入） | 內含（v1.1.0 比 v1.0.2 多 7 個 must-deny、4 個 must-pass：遠端網址路徑與 `dataset.key` 的收窄，以及收窄不能放過的 `file://`、`C://`、`~/.dataset.key`） |
 | K5 | citecheck 支撐檢查：原 span **OK** | span 的 22 um 與主張的「= 22 μm」都改成 48：**FAIL** |

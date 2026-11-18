@@ -135,7 +135,7 @@ README 的「運作流程」圖（`docs/assets/flow.zh-TW.png`、英文版 `flow
 | 2 需要文獻 | 先判斷階段 → 依需求搜尋 | 同上 L134–135 Mode 2 請求契約 |
 | 只找文獻 | 你的研究問題 → 依需求搜尋 | `literature-search-extract/SKILL.md` L43–50 Mode 1 直接請求；`scientific-research-guide/SKILL.md` L83–87 純找文獻的回合直接交給文獻員 |
 | 3 | 依需求搜尋 → 准不准讀取 | `literature-search-extract/SKILL.md` L140 P3 |
-| 4 准 | 准不准讀取 → 抽取內容 | 同上 L147–155 |
+| 4 准 | 准不准讀取 → 抽取內容 | 同上 L149–158 |
 | 禁止或驗證碼 | 准不准讀取 → 交給你自己開 | 同上 L116–118；hook 拒絕 |
 | 5 | 抽取內容 → 引用查核 | 同上 L187–190 先寫證據帳本再跑 citecheck |
 | 對不上：改寫或刪除（退回） | 引用查核 → 抽取內容 | `literature-search-extract/references/verification-gate.md` L182–198 修復順序（照存下的原文改寫主張；原文撐不住就刪掉，記為缺口） |
@@ -196,7 +196,7 @@ python -X utf8 verify/run_controls.py <新的空資料夾>
 - `runs.py register`（與 `adopt`）在登記後會呼叫原環境的 `tools/research-graph/rg.py`（研究關聯圖譜），`tier-framework.md` §5 與研究者系譜格式也指向它；本 repo 不出貨，
   `runs.py` 在 `reference-impl/tools/research-graph/rg.py` 不存在時直接 return（出貨版永遠走這一側）。那個工具存在時的行為沒有在本 repo 驗證；列在 `verify/unshipped_paths.txt`（`origin-tool`）。
 - `verify/apabib.py` 的連網測試預設略過（`LSE_LIVE_TESTS=1` 才跑、會對 Crossref 送兩個請求）；`ocr_bench.py` 與其標準答案檔不隨附，`textbook_ocr.py` 說明裡提到它。
-- 三個隨附的測試檔有宣告修改（BUILD-SPEC §9 E8–E10）：原環境的版本在「測試前就設好 `LSE_RUN_HOME`」的機器上會互相干擾，修正尚未回到原環境。
+- 三個隨附的測試檔有宣告修改（BUILD-SPEC §9 E8–E10；E8–E10 之外另有 E11–E16 的去識別與「未出貨」說明）：原環境的版本在「測試前就設好 `LSE_RUN_HOME`」的機器上會互相干擾，修正尚未回到原環境。
 - `literature-host-policy.json` 中 IEEE Xplore 那列（以及 `references/search-sources.md` 第 155 行附近的同一段）的依據引文在原環境就被截斷（斷在 "through an entitled se"）；政策檔是使用者自己維護的檔案，公開版原樣保留，不代改。
 - 拒絕訊息指向的誤判回報工具 `tools/hook-deny-lint/report_fp.py` 沒有隨附；要回報誤判，自己記一行到 hook 的 telemetry 即可。
 - `rules/literature-access.md` 說次數上限「刻意不放在 hook 裡」，但目前的 hook 已對 `max_per_run` ≤ 2 的主機做單一 session 計次，並對未登記的抓取腳本發提醒；規則文字落後於 hook（原環境既有）。

@@ -1,6 +1,6 @@
 # Third-party notices
 
-Checked on 2026-11-07. Everything else in this repository is the author's own work (see `LICENSE`,
+Checked on 2026-11-18 (v1.1.0; first written 2026-11-07). Everything else in this repository is the author's own work (see `LICENSE`,
 `LICENSE-DOCS`). Facts below were checked against the shipped files of `reference-impl/` and against the
 installed package metadata on the machine that produced `verify/controls_run.txt`.
 
@@ -43,10 +43,14 @@ content from those hosts is included in this repository.
   for them, and none of the cited works is reproduced. The retraction control in `verify/citecheck.py`
   uses the identifier of a well-known retracted article against offline stub data; no network response is
   stored.
+- `reference-impl/skills/literature-search-extract/connectors/textbook_ocr.py` (`selftest`, the CJK token-count
+  control) holds one Chinese sentence of about 40 characters taken from a published book, used only as a
+  tokenisation input (spaced and unspaced forms must count the same). It is one fact-sized line, not a
+  reproduction of the work, and no licence is claimed for it; replace it with your own sentence if that matters to you.
 
 ## Runtime dependencies (installed by you, not shipped)
 
-| package | used by | licence (from its installed metadata, 2026-11-07) |
+| package | used by | licence (from its installed metadata, 2026-11-18; rows added in v1.1.0 follow the table) |
 |---|---|---|
 | idutils 1.7.0 | `loop/idkey.py` identifier validation (required by K1e and K2) | BSD-3-Clause (Invenio project) |
 | jsonschema 4.26 | `loop/runs.py` run-record validation (required by K2) | MIT |
@@ -55,6 +59,10 @@ content from those hosts is included in this repository.
 | Pillow 12.3 | `connectors/textbook_ocr.py` page images for OCR (optional tool) | MIT-CMU (HPND) |
 | pypdf | `verify/fetchsrc.py` fallback PDF text when PyMuPDF is absent (guarded import, optional) | BSD-3-Clause |
 | PyYAML | `loop/tests/test_runs.py` one test (guarded import, skipped without it) | MIT |
+| numpy 2.2.6 | `connectors/textbook_index.py` figure extraction (imports inside functions; optional) | BSD (the package's licence classifier; its licence file also carries notices of bundled parts) |
+| opencv-python-headless 4.12.0.88 (`import cv2`) | `connectors/textbook_index.py` figure extraction (optional) | Apache-2.0 (its metadata); the wheel bundles other libraries under their own licences, not checked here |
+| rapidocr 3.10.0 | `connectors/textbook_ocr.py` `--engine rapidocr` (optional; its selftest skips when absent) | Apache-2.0 (its metadata); the OCR model files it downloads or bundles carry their own licences, **not checked here** |
+| onnxruntime 1.24.4 | runs the rapidocr models (optional, installed with rapidocr) | MIT |
 | Node.js (runtime, not a package; tested with 24) | `docs/assets/flow.build.mjs` only (the README flow diagram; standard library only, no npm install) | MIT (Node.js) |
 | Playwright + Chromium | `docs/assets/build_assets.py` only (regenerating the README images; not needed to use the kit) | Apache-2.0 (Playwright); Chromium BSD-3-Clause and others |
 
@@ -62,6 +70,13 @@ Most call sites import PyMuPDF lazily inside functions (as `fitz`); the two text
 (`connectors/textbook_index.py`, `connectors/textbook_ocr.py`) import it at module level and require it. The
 repository does not include or modify PyMuPDF. `connectors/textbook_ocr.py` also calls the Windows
 `Windows.Media.Ocr` system API (Windows only). The README images are rendered with system fonts by family
-name (Noto Serif TC, Cascadia Mono, Consolas); no font file is shipped. The kit also calls public metadata APIs (Crossref, Semantic Scholar, arXiv, NCBI) at
+name (Noto Serif TC, Cascadia Mono, Consolas); no font file is shipped. The kit also calls public metadata APIs (Crossref, Semantic Scholar, arXiv, NCBI, and since v1.1.0
+DataCite at `api.datacite.org` and the DOI registration-agency lookup at `doi.org/ra`, both from `verify/apabib.py`) at
 run time under their own terms; `reference-impl/hooks/literature-host-policy.json` records the basis and
 the per-host caps for each.
+
+## Not shipped, installed by the user (optional)
+
+`connectors/textbook_ocr.py --engine vlm` talks to a local llama.cpp `llama-server` that serves a
+PaddleOCR-VL GGUF model file (the licences of both are not checked here). Neither is included in this
+repository, nothing here downloads them, and no control uses them.

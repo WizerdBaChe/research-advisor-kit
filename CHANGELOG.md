@@ -7,7 +7,8 @@ patch = fix. Format after Keep a Changelog.
 
 New capability in the librarian and two hook changes, refreshed from the origin: 19 of the 96 files shipped in
 v1.0.2 changed (77 are byte-identical) and 5 files are added (`apabib.py`, `notice_budget.py`, three test files),
-101 in all. Declared edits E7-E10 and one screen allowance are new, see `docs/BUILD-SPEC.md` §9.
+101 in all. Declared edits E7-E16 and one screen allowance are new, see `docs/BUILD-SPEC.md` §9. A third party's
+social handle or post id is not shipped (E11, E12); the origin's own guard of the ingest notice (below) is in the refresh.
 
 ### Added
 
@@ -42,7 +43,8 @@ v1.0.2 changed (77 are byte-identical) and 5 files are added (`apabib.py`, `noti
 - `literature-search-extract` SKILL.md: four detail blocks moved to `references/` (host access policy, central
   bibliography freshness, reference-list tool, recall-check rationale); line references in `docs/DEVELOPER.md` and the
   flow diagram's source map re-pointed (several were already two lines off in v1.0.2).
-- `loop/tests`: 54 -> 76 passing, 2 skipped. `docs/EVIDENCE.md` gains four enforcement-map rows; its line numbers are
+- `loop/tests`: 54 -> 77 passing, 2 skipped (76 passing, 3 skipped without PyYAML; K2 now asserts exactly the expected
+  skip count and no failure). `docs/EVIDENCE.md` gains four enforcement-map rows; its line numbers are
   refreshed (14 moved, 0 lost).
 
 ### Fixed
@@ -53,11 +55,18 @@ v1.0.2 changed (77 are byte-identical) and 5 files are added (`apabib.py`, `noti
 - `test_apabib.py`'s two live-registry cases ran whenever the machine was online, so K2's count depended on
   connectivity and a control touched the network; they now need `LSE_LIVE_TESTS=1` (E10).
 
+- `loop/inbox.py ingest --apply` called the stale-bibliography notice unguarded, so a host with neither `LSE_BIB_HOME`
+  nor `NOTES_VAULT` ended in SystemExit after the files had moved; it now prints one "not checked" line, as `register`
+  does (`runs.py` also catches any exception there). Fixed at the origin with a new test (K2 +1).
+- `verify/run_controls.py` K2 now asserts the exact skip count (2, or 3 without PyYAML) and no failure.
+
 ### Limits (new)
 
 - `runs.py register` calls the origin's research-graph tool (`tools/research-graph/rg.py`) after a register when it is
   present; it is not shipped, so here the call returns at once and the genealogy table is built by hand. E7 says so in
-  `tier-framework.md`. The unshipped paths the text cites are listed in `verify/unshipped_paths.txt` (class `origin-tool`).
+  `tier-framework.md`; E15 does the same in `output-templates.md` §12. The origin's term-log tool
+  (`tools/term-log/termlog.py`, the P4 "query each undefined name" step) is not shipped either: the step is done by hand
+  and reported as checked or "not queried" (E16). The unshipped paths the text cites are listed in `verify/unshipped_paths.txt` (class `origin-tool`).
 
 ## [1.0.2] - 2026-11-07
 

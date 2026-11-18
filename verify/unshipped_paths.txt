@@ -49,6 +49,13 @@ references/prior-art-sweep.md	origin-history
 tools/hook-deny-lint/report_fp.py	origin-history
 tools/hook-deny-lint/exit_route.py	origin-history
 hooks/ops_health_nudge.py	origin-history
+hooks/tests/test_notice_budget.py	origin-history
+hooks/tests/test_notice_budget_wiring.py	origin-history
+tools/graph-snapshot/gs_watchdog.py	origin-history
+tools/process-ledger/ledger.py	origin-history
+tools/compact-loss-audit	origin-history
+references/long-run-probe-design.md	origin-history
+reports/harness-healthcheck-2026-10-12/notice-budget-replay.md	origin-history
 tools/research-graph/rg.py	origin-tool
 tools/research-graph/tests/test_after_register_parity.py	origin-tool
 skills/paper-distill/scripts/library.py	origin-tool

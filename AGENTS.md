@@ -20,7 +20,11 @@
 - **Origin tools that are NOT shipped:** `skills/literature-search-extract/loop/runs.py` calls the origin's
   research-graph tool (`tools/research-graph/rg.py`) after a register and `tier-framework.md` §5 and the
   researcher-genealogy format point at it; here that call returns at once because the file is absent, and a
-  genealogy table is built by hand. The list of such paths is `verify/unshipped_paths.txt`.
+  genealogy table is built by hand (`output-templates.md` §12 says so where it names `rg.py independence`).
+  The SKILL.md P4 step "list the undefined names per source, then query each" names the origin's term-log
+  tool (`tools/term-log/termlog.py`, via `verification-gate.md` "Unknown proper nouns"); it is not shipped
+  either, so that step is done by hand here: look each unknown name up, name what you checked, and write
+  "not queried" for any you did not. The list of such paths is `verify/unshipped_paths.txt`.
 - **Threat model:** the gates catch a careless agent (a quote typed from memory, a copied number, a fetch that
   skipped `fetchsrc.py`), not a deliberately evasive one: `sources/manifest.json` is unsigned, the hook reads only
   literal URLs, and the secret-guard approval marker can be typed by anyone. Details: `docs/EVIDENCE.md` "不宣稱".
@@ -33,7 +37,9 @@
 - **Network and side effects:** the acceptance controls make no network calls (citecheck runs with
   `--offline` stub resolvers; the hook is fed a payload on stdin). In normal use the skill fetches only
   through `verify/fetchsrc.py` and the policy file, and metadata APIs (Crossref, arXiv, Semantic Scholar,
-  PubMed) are called by `citecheck.py` without `--offline`. No contact address is sent unless the user sets
+  PubMed) are called by `citecheck.py` without `--offline`, and `verify/apabib.py` (v1.1.0) calls Crossref,
+  `api.datacite.org`, `doi.org/ra` (which registry holds a DOI) and the arXiv API through the same host policy
+  (the two live-registry tests that would send requests stay skipped unless `LSE_LIVE_TESTS=1`). No contact address is sent unless the user sets
   `LSE_ARXIV_CONTACT` (arXiv only). The controls copy `reference-impl/` into a scratch folder, mutate and
   delete it.
 - **If you only read and do not execute:** read `docs/EVIDENCE.md`, then `verify/controls_run.txt` as the

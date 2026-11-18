@@ -118,7 +118,7 @@ function edgesOf(N, G2R) {
     { id: 's2', kind: 'side', text: T.sOnly, from: 'Q', to: 'SRCH',
       pts: [[n('Q').cx, n('Q').b], [n('Q').cx, ROW2], [n('SRCH').l, ROW2]], src: `${LSE} L43-50 Mode 1 direct request; ${SRG} L83-87 a retrieval-only turn is handed straight to the librarian` },
     { id: 'e3', kind: 'main', step: 3, from: 'SRCH', to: 'POL', pts: [[n('SRCH').r, ROW2], [n('POL').l, ROW2]], src: `${LSE} L140 P3` },
-    { id: 'e4', kind: 'main', step: 4, text: T.e4, from: 'POL', to: 'EXT', pts: [[n('POL').r, ROW2], [n('EXT').l, ROW2]], src: `${LSE} L147-155` },
+    { id: 'e4', kind: 'main', step: 4, text: T.e4, from: 'POL', to: 'EXT', pts: [[n('POL').r, ROW2], [n('EXT').l, ROW2]], src: `${LSE} L149-158` },
     { id: 's3', kind: 'side', text: T.sBan, from: 'POL', to: 'U', pts: [[n('POL').cx, n('POL').b], [n('U').cx, n('U').t]], src: `${LSE} L116-118 refused or challenged host; hook deny` },
     { id: 'e5', kind: 'main', step: 5, from: 'EXT', to: 'CC', pts: [[n('EXT').r, ROW2], [n('CC').l, ROW2]], src: `${LSE} L187-190 ledger then citecheck` },
     { id: 'b1', kind: 'back', text: T.b1, from: 'CC', to: 'EXT',
