@@ -17,6 +17,10 @@
   Citation spans, numbers in spans, metadata, provenance, host access and manifest structure are checked by
   scripts or hooks; stage diagnosis, method advice, non-intrusion and whether a span SUPPORTS a claim are
   process rules the agent follows from SKILL.md text.
+- **Origin tools that are NOT shipped:** `skills/literature-search-extract/loop/runs.py` calls the origin's
+  research-graph tool (`tools/research-graph/rg.py`) after a register and `tier-framework.md` §5 and the
+  researcher-genealogy format point at it; here that call returns at once because the file is absent, and a
+  genealogy table is built by hand. The list of such paths is `verify/unshipped_paths.txt`.
 - **Threat model:** the gates catch a careless agent (a quote typed from memory, a copied number, a fetch that
   skipped `fetchsrc.py`), not a deliberately evasive one: `sources/manifest.json` is unsigned, the hook reads only
   literal URLs, and the secret-guard approval marker can be typed by anyone. Details: `docs/EVIDENCE.md` "不宣稱".
@@ -85,6 +89,7 @@ The tree under `reference-impl/` maps 1:1 onto a `~/.claude` home:
 | `reference-impl/hooks/literature_host_guard.py`, `literature-host-policy.json` | `~/.claude/hooks/` | publisher access boundary at the tool layer (register it, spec §8) |
 | `reference-impl/hooks/secret_file_guard.py`, `deny_receipt.py` | `~/.claude/hooks/` | keeps `connectors/.env` keys out of reads (register it, spec §8) |
 | `reference-impl/hooks/_lib/{roots,telemetry}.py` | `~/.claude/hooks/_lib/` | machine roots and locked log appends; skip if your home already has them |
+| `reference-impl/hooks/notice_budget.py` | `~/.claude/hooks/` | once-per-session budget for the host hook's notices; without it every notice prints (fail-open) |
 | `reference-impl/hooks/tests/`, `reference-impl/tools/secret-guard-test/` | same paths under `~/.claude/` | the hooks' own tests |
 | `reference-impl/rules/literature-access.md` | `~/.claude/rules/` | the prose rule the hook enforces |
 | `verify/host.toml` | `~/.claude/adapt/host.toml` (or point `HK_HOST_TOML` at it) | roots.py refuses to guess without a host file |

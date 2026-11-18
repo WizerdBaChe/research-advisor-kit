@@ -87,7 +87,7 @@ The kit splits the two jobs between two roles:
 Paste this to Claude Code (or any agent that can read files and run Python):
 
 ```text
-Read AGENTS.md in https://github.com/WizerdBaChe/research-advisor-kit/tree/v1.0.2 (use the pinned v1.0.2 release, not main) and follow its steps:
+Read AGENTS.md in https://github.com/WizerdBaChe/research-advisor-kit/tree/v1.1.0 (use the pinned v1.1.0 release, not main) and follow its steps:
 1. Run verify/run_controls.py first, compare the result with verify/controls_run.txt and tell me;
 2. List the settings in docs/BUILD-SPEC.md §8 that must map to my environment (folders, environment variables, the two hook registrations) and wait for my confirmation;
 3. After I confirm, install the two skills, the hooks and the tools into my ~/.claude.
@@ -156,8 +156,16 @@ flowchart LR
 
 </details>
 
-## What's in this version (v1.0.2)
+## What's in this version (v1.1.0)
 
+- **New in v1.1.0:**
+  - The librarian gains four whole-corpus output formats (twelve in all): assumption census, method census, concept lineage and researcher genealogy (is a set of results one school's or independent?). They need at least 5 gathered sources and describe that set only, never the field.
+  - `verify/apabib.py` builds APA 7 reference entries from DOIs or arXiv ids using registry records instead of typing; an id whose record cannot be fetched prints "needs manual check" with no entry body, and a run's ledger can be diffed for author order and year.
+  - After a register, if the central bibliography (the RIS export of `inbox.py bib`) lacks the run's sources, `register` prints a notice on stderr with the refresh command (`--export-bib` runs it at once, since it is networked and slow).
+  - Textbook tools: cleaner exports, a table-of-contents page check, figure-caption extraction; OCR gains rapidocr and VLM engines chosen per page class (bring your own textbook library; this repo cannot exercise it).
+  - Two hooks narrowed or tidied: the secret-file guard no longer blocks `curl https://…/.env` style remote URL paths or the JS `el.dataset.key` (`file://` and local paths still deny; secret-guard cases 50/53 → 57/57); the literature-host hook's notice fires at most once per session per host (ships `hooks/notice_budget.py`), and a denied call no longer leaves a count row.
+  - Acceptance: `loop/tests` goes from 54 to 76 passing (2 networked tests skipped by default); all 19 controls still pass. Three test files carry declared edits, see `docs/BUILD-SPEC.md` §9 E8–E10.
+  - **Limit:** the research graph that `register` calls afterwards is not shipped (a missing graph is skipped); genealogy tables are always built by hand. See "Limits" below.
 - **Fixed in v1.0.2 (from outside agents' reviews):** a blank quoted span, unreadable ledger lines, an empty ledger and a run without `run.json` used to pass and now fail;
   a run whose citation check carries a FAIL can no longer be registered as delivered; `fetchsrc.py` checks every redirect hop's scheme and banned hosts before sending it, so a DOI that redirects to a banned publisher never gets that request sent (per-run caps count only the final host);
   the acceptance run no longer reads the settings installed on your machine and runs without PyMuPDF; the advisor's statistics tables are corrected (no bootstrap-first for small samples, Welch by default, post-hoc tests and mixed models added) and cite their sources.
@@ -191,6 +199,7 @@ Since v1.0.0:
 - **No paywall workarounds:** a source the policy bans or an anti-bot page answers is always recorded as "not retrieved, handed to the user". The policy's host list was checked at one point in time; publisher terms change.
 - **Tested only on Windows 11 + Python 3.12** (3.12 or newer required, packages in `verify/requirements.txt`; no API key needed); three failures an outside reader measured on macOS are fixed but not re-run on macOS. The local textbook library and the Zotero connector need your own data, and in a clean environment the textbook tool's self-test can only report "undetermined".
 - **Two flaws in the deny message are kept as shipped:** one policy row's quoted basis (and the same passage in `search-sources.md`) was already truncated at the origin (it breaks off at "through an entitled se"); the false-positive reporter the message points to, `tools/hook-deny-lint/report_fp.py`, is not shipped. Neither changes the allow/deny verdict.
+- **Some shipped text points at origin tools this repo does not have:** after a successful `runs.py register` the code calls the origin's research graph (a people-and-papers relation graph, `tools/research-graph/`), and the researcher-genealogy format suggests querying it first. The graph is not shipped: when it is absent the call is skipped and the register result is unchanged, and the genealogy table is always built by hand. The full list is `verify/unshipped_paths.txt`.
 - More limits and the manual acceptance checklist: [`docs/DEVELOPER.md`](docs/DEVELOPER.md#限制) (Traditional Chinese).
 
 ## Author

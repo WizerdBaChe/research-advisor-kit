@@ -87,7 +87,7 @@
 把下面這段貼給 Claude Code（或其他能讀檔、跑 Python 的 agent）：
 
 ```text
-請讀 https://github.com/WizerdBaChe/research-advisor-kit/tree/v1.0.2 的 AGENTS.md（固定用 v1.0.2 這個版本，不要用 main），照它的步驟：
+請讀 https://github.com/WizerdBaChe/research-advisor-kit/tree/v1.1.0 的 AGENTS.md（固定用 v1.1.0 這個版本，不要用 main），照它的步驟：
 1. 先跑 verify/run_controls.py，把結果和 verify/controls_run.txt 對照後告訴我；
 2. 列出 docs/BUILD-SPEC.md §8 裡要對應到我環境的設定（資料夾、環境變數、兩個 hook 的註冊），等我確認；
 3. 確認後把兩個 skill、hook 和工具裝進我的 ~/.claude。
@@ -156,8 +156,16 @@ flowchart LR
 
 </details>
 
-## 這版有什麼（v1.0.2）
+## 這版有什麼（v1.1.0）
 
+- **v1.1.0 新增**：
+  - 文獻員多四種「整批文獻」輸出格式（共 12 種）：前提普查、方法分布、概念譜系、研究者系譜（判斷一批結果是同一派系還是各自獨立）；格式要先收齊至少 5 篇來源，只描述這一批、不替整個領域下結論。
+  - `verify/apabib.py`：由 DOI 或 arXiv 編號向註冊機構取回紀錄、產生 APA 7 參考文獻，不手打；取不到的編號只印「需人工確認」、不給條目，可與某個 run 的帳本比對作者順序與年份。
+  - 登記一個 run 之後，若集中書目（`inbox.py bib` 匯出的 RIS）漏了這個 run 的來源，`register` 會在 stderr 通知，並附重新匯出的指令（加 `--export-bib` 才會立刻匯出，因為匯出要連網且慢）。
+  - 教科書工具：匯出清理、目錄頁檢查、圖說擷取；OCR 多了 rapidocr 與 VLM 兩種引擎，依頁面類型選擇（教科書庫要自備，本 repo 驗不到）。
+  - 兩個 hook 收窄與整理：金鑰保護不再擋 `curl https://…/.env` 這類遠端網址路徑與 JS 的 `el.dataset.key`（`file://` 與本機路徑仍擋；金鑰檔測試 50/53 → 57/57）；文獻主機 hook 的通知每 session 每主機最多一次（隨附 `hooks/notice_budget.py`），被拒的呼叫不再留下計次紀錄。
+  - 驗收：`loop/tests` 由 54 例增為 76 例通過（另 2 例連網測試預設略過）；19 項控制仍全數通過。三個測試檔有宣告修改，見 `docs/BUILD-SPEC.md` §9 E8–E10。
+  - **限制**：登記後呼叫的「研究關聯圖譜」不隨附（找不到就略過）；系譜格式一律手建。見下方「限制」。
 - **v1.0.2 修正（來自外部 agent 的審閱）**：全空白的引用原句、讀不懂的帳本列、空帳本、缺 `run.json` 的 run，以前會被放過，現在一律判失敗；
   引用查核有 FAIL 的 run 不能再登記為已交付；`fetchsrc.py` 跟轉址時每一跳先判協定與禁用主機，DOI 轉到被禁的出版商時那一跳不會送出（每 run 上限只算最後落地的主機）；
   驗收不再讀你機器上已安裝的設定、沒有 PyMuPDF 也能跑；顧問的統計判斷表改正（小樣本不再優先 Bootstrap、預設 Welch、加入事後比較與混合模型）並附出處。
@@ -191,6 +199,7 @@ v1.0.0 起就有：
 - **不幫你繞過付費牆**：被政策禁止或遇到反爬蟲的來源，一律列為「沒取到、交給使用者」。政策檔的主機清單是某個時間點的實測，出版商條款會變。
 - **只在 Windows 11 + Python 3.12 實測**（需要 3.12 以上，套件見 `verify/requirements.txt`；不需要 API 金鑰）；macOS 上有外部讀者量到的三項失敗已修正，但修正後沒在 macOS 重跑。本機教科書庫與 Zotero 連接器要用你自己的資料，乾淨環境下教科書工具的自我測試只能回報「無法判定」。
 - **拒絕訊息有兩處原樣保留的瑕疵**：政策檔某一列（以及 `search-sources.md` 的同一段）的依據引文在原環境就被截斷（句中斷在 "through an entitled se"）；拒絕訊息指向的誤判回報工具 `tools/hook-deny-lint/report_fp.py` 沒有隨附。兩者不影響放行／拒絕的判定。
+- **有些文字指向原環境的工具，本 repo 沒有**：`runs.py register` 登記完會去呼叫原環境的「研究關聯圖譜」（人與論文的關係圖，`tools/research-graph/`），研究者系譜格式也建議先查它；本 repo 不出貨這個工具，找不到就略過、登記結果不變，系譜表一律手建。完整清單在 `verify/unshipped_paths.txt`。
 - 更多限制與人工驗收清單：[`docs/DEVELOPER.md`](docs/DEVELOPER.md#限制)。
 
 ## 作者

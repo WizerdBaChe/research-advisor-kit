@@ -40,6 +40,7 @@ ENV = dict(os.environ, HK_HOST_TOML=str(REPO / "verify" / "host.toml"), PYTHONIO
            CLAUDE_TELEMETRY_DIR=str(work / "telemetry"),
            LSE_RUN_HOME=str(work / "runs"), LSE_INBOX=str(work / "inbox"), LSE_BIB_HOME=str(work / "bib"))
 ENV.pop("LSE_ARXIV_CONTACT", None)
+ENV.pop("LSE_LIVE_TESTS", None)   # the two live-registry tests in test_apabib.py stay skipped: no control touches the network
 results: list[tuple[str, bool]] = []
 undetermined: list[str] = []
 

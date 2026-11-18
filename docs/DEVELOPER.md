@@ -26,6 +26,7 @@ research-advisor-kit/
    │  ├── literature-host-policy.json 主機政策（hook 與文獻員共用）
    │  ├── secret_file_guard.py       API 金鑰讀取保護 hook
    │  ├── deny_receipt.py            拒絕紀錄與誤擋回報
+   │  ├── notice_budget.py           通知每 session 一次的額度（壞掉時通知照發）
    │  ├── _lib/roots.py, telemetry.py 機器根目錄、加鎖寫入
    │  └── tests/test_literature_host_guard.py
    ├── rules/literature-access.md    存取規則（hook 執行的那條規則的文字版）
@@ -41,7 +42,7 @@ research-advisor-kit/
          ├── SKILL.md
          ├── references/  搜尋來源、連接器、可信度評分、抽取手冊、查核閘、回饋迴路、輸出範本…
          ├── connectors/  access_policy、probe、zotero_local、pdf_index、textbook_index/ocr、local_find
-         ├── verify/      citecheck、fetchsrc、pagestore、spannorm、staleclaim
+         ├── verify/      citecheck、fetchsrc、pagestore、spannorm、staleclaim、apabib（由 DOI／arXiv 編號產生 APA 7 參考文獻）
          ├── loop/        runs、inbox、reflux、idkey（證據執行紀錄的存放與回流）＋測試
          ├── consumers/   呼叫者登記表
          └── evals/       評測案例
@@ -119,12 +120,12 @@ README 的「運作流程」圖（`docs/assets/flow.zh-TW.png`、英文版 `flow
 | 你的研究問題 | `scientific-research-guide/SKILL.md` L44（Gate A 在每一輪開頭觸發） | — |
 | 先判斷階段 | 同上 L44–110（Gate A：Step 0 領域路由、Step 0.5 範圍檢查、Tier 對應） | Gate C–E、`research-state.md`（Gate B 只畫出委派文獻員這一條） |
 | 下一步與理由 | 同上 L111 六段診斷；L252 一般回合的形狀 | 文件範本（Gate D） |
-| 依需求搜尋 | `literature-search-extract/SKILL.md` L85 P1、L95 P2 | P1 與 P2 合成一個節點；召回檢查、連接器路由 |
-| 准不准讀取 | 同上 L114–117 取用前先查主機存取政策、L143–161 P3 存取標記；`hooks/literature_host_guard.py` ＋ `literature-host-policy.json` | 每主機與每次執行的次數上限；圖上畫成二選一，實際可以先抽取政策允許的部分、同時把那份文件交給你 |
-| 抽取內容 | 同上 L167 P4、L171 每筆附位置 | 衝突並列、限制條件抽取 |
-| 引用查核 | 同上 L188 P4.5；`verify/citecheck.py` | 數字在原句、書目比對、撤稿、取得路徑檢查（README 文字帶到） |
-| 交付結果 | 同上 L203 P5；L73 結果契約 | AI 使用揭露、Zotero 收尾 |
-| 交給你自己開 | 同上 L114–117 被拒或遇驗證碼的主機交給你；L160–161 記為缺口 (gaps) | — |
+| 依需求搜尋 | `literature-search-extract/SKILL.md` L87 P1、L97 P2 | P1 與 P2 合成一個節點；召回檢查、連接器路由 |
+| 准不准讀取 | 同上 L116–118 取用前先查主機存取政策、L140–158 P3 存取標記；`hooks/literature_host_guard.py` ＋ `literature-host-policy.json` | 每主機與每次執行的次數上限；圖上畫成二選一，實際可以先抽取政策允許的部分、同時把那份文件交給你 |
+| 抽取內容 | 同上 L164 P4、L168 每筆附位置 | 衝突並列、限制條件抽取 |
+| 引用查核 | 同上 L185 P4.5；`verify/citecheck.py` | 數字在原句、書目比對、撤稿、取得路徑檢查（README 文字帶到） |
+| 交付結果 | 同上 L200 P5；L75 結果契約 | AI 使用揭露、Zotero 收尾 |
+| 交給你自己開 | 同上 L116–118 被拒或遇驗證碼的主機交給你；L157–158 記為缺口 (gaps) | — |
 | 書單直接給你 | `scientific-research-guide/SKILL.md` L83–91 Step 0.5：純找文獻的請求不跑 Tier 對應、不做六段診斷 | 顧問可以用一句話提一個方法風險，由你決定要不要聽 |
 
 | 圖上連線 | 從 → 到 | 來源 |
@@ -132,14 +133,14 @@ README 的「運作流程」圖（`docs/assets/flow.zh-TW.png`、英文版 `flow
 | 1 | 你的研究問題 → 先判斷階段 | `scientific-research-guide/SKILL.md` L44 |
 | 不需文獻 | 先判斷階段 → 下一步與理由 | 同上 L252；標籤是從 L132–138 推出的（只有實質的文獻工作才委派） |
 | 2 需要文獻 | 先判斷階段 → 依需求搜尋 | 同上 L134–135 Mode 2 請求契約 |
-| 只找文獻 | 你的研究問題 → 依需求搜尋 | `literature-search-extract/SKILL.md` L41–48 Mode 1 直接請求；`scientific-research-guide/SKILL.md` L83–87 純找文獻的回合直接交給文獻員 |
-| 3 | 依需求搜尋 → 准不准讀取 | `literature-search-extract/SKILL.md` L143 P3 |
-| 4 准 | 准不准讀取 → 抽取內容 | 同上 L152–160 |
-| 禁止或驗證碼 | 准不准讀取 → 交給你自己開 | 同上 L114–117；hook 拒絕 |
-| 5 | 抽取內容 → 引用查核 | 同上 L188–195 先寫證據帳本再跑 citecheck |
+| 只找文獻 | 你的研究問題 → 依需求搜尋 | `literature-search-extract/SKILL.md` L43–50 Mode 1 直接請求；`scientific-research-guide/SKILL.md` L83–87 純找文獻的回合直接交給文獻員 |
+| 3 | 依需求搜尋 → 准不准讀取 | `literature-search-extract/SKILL.md` L140 P3 |
+| 4 准 | 准不准讀取 → 抽取內容 | 同上 L147–155 |
+| 禁止或驗證碼 | 准不准讀取 → 交給你自己開 | 同上 L116–118；hook 拒絕 |
+| 5 | 抽取內容 → 引用查核 | 同上 L187–190 先寫證據帳本再跑 citecheck |
 | 對不上：改寫或刪除（退回） | 引用查核 → 抽取內容 | `literature-search-extract/references/verification-gate.md` L182–198 修復順序（照存下的原文改寫主張；原文撐不住就刪掉，記為缺口） |
-| 6 原句在原文 | 引用查核 → 交付結果 | `literature-search-extract/SKILL.md` L203 |
-| 列為缺口 | 交給你自己開 → 交付結果 | 同上 L161 |
+| 6 原句在原文 | 引用查核 → 交付結果 | `literature-search-extract/SKILL.md` L200 |
+| 列為缺口 | 交給你自己開 → 交付結果 | 同上 L157 |
 | 7 交回顧問 | 交付結果 → 下一步與理由 | `scientific-research-guide/SKILL.md` L135 接收結果契約 |
 | 只找文獻 | 交付結果 → 書單直接給你 | 同上 L83–91 用階段診斷回答找書單的請求算過度觸發 |
 
@@ -192,6 +193,10 @@ python -X utf8 verify/run_controls.py <新的空資料夾>
 - hook 只看得到工具呼叫的參數：一支自己寫的腳本若在 hook 看不到的地方抓取，只會被 `fetchsrc.py` / `access_policy.py --record` 計次（如果有用它們）。
 - `textbook_ocr.py --selftest` 在沒有教科書庫的機器上回傳 exit 1，而不是像 `local_find.py` 回報「無法判定」（原環境既有行為，驗收時列為 UNDT）。
 - 只在 Windows 11 實測；macOS / Linux 未跑過驗收。
+- `runs.py register`（與 `adopt`）在登記後會呼叫原環境的 `tools/research-graph/rg.py`（研究關聯圖譜），`tier-framework.md` §5 與研究者系譜格式也指向它；本 repo 不出貨，
+  `runs.py` 在 `reference-impl/tools/research-graph/rg.py` 不存在時直接 return（出貨版永遠走這一側）。那個工具存在時的行為沒有在本 repo 驗證；列在 `verify/unshipped_paths.txt`（`origin-tool`）。
+- `verify/apabib.py` 的連網測試預設略過（`LSE_LIVE_TESTS=1` 才跑、會對 Crossref 送兩個請求）；`ocr_bench.py` 與其標準答案檔不隨附，`textbook_ocr.py` 說明裡提到它。
+- 三個隨附的測試檔有宣告修改（BUILD-SPEC §9 E8–E10）：原環境的版本在「測試前就設好 `LSE_RUN_HOME`」的機器上會互相干擾，修正尚未回到原環境。
 - `literature-host-policy.json` 中 IEEE Xplore 那列（以及 `references/search-sources.md` 第 155 行附近的同一段）的依據引文在原環境就被截斷（斷在 "through an entitled se"）；政策檔是使用者自己維護的檔案，公開版原樣保留，不代改。
 - 拒絕訊息指向的誤判回報工具 `tools/hook-deny-lint/report_fp.py` 沒有隨附；要回報誤判，自己記一行到 hook 的 telemetry 即可。
 - `rules/literature-access.md` 說次數上限「刻意不放在 hook 裡」，但目前的 hook 已對 `max_per_run` ≤ 2 的主機做單一 session 計次，並對未登記的抓取腳本發提醒；規則文字落後於 hook（原環境既有）。
@@ -207,6 +212,7 @@ python -X utf8 verify/run_controls.py <新的空資料夾>
 4. 對文獻員說「幫我找 X 的文獻值做成參數表」（X 換成你熟的主題）：每一列都有出處位置與存取等級，結尾有缺口（查不到的部分）與可信度。
 5. 把其中一列的數字改掉後跑 `citecheck.py`：那一列要變成 FAIL。
 6. 照 `domain-expansion-guide.md` 加一個你的領域，`profile-lint.py` 跑到 0 FAIL；再問一個含該領域關鍵字的問題，顧問要說明它載入了哪個領域檔。
+7. （v1.1.0，需要網路）對一個你熟悉的 DOI 跑 `python verify/apabib.py <DOI>`：作者順序、年份、標題要和出版社頁面一致；再給一個不存在的 DOI，輸出要是「需人工確認」而且沒有條目本文、exit 3。這是唯一會對 Crossref 實際發請求的檢查，控制項沒有跑它。
 
 ### B 體驗
 

@@ -31,7 +31,7 @@ hosts whose terms forbid agents and hands anti-bot challenges to the user.
 | librarian | `skills/literature-search-extract/` | SKILL.md (P1-P5), `references/`, `connectors/` (registry, probe, access_policy, local corpus tools), `verify/` (citecheck, fetchsrc, pagestore, spannorm, staleclaim), `loop/` (run store, identity keys, reflux, inbox, schemas, tests), `consumers/` (caller registry) |
 | host access hook | `hooks/literature_host_guard.py`, `hooks/literature-host-policy.json` | PreToolUse deny of agent fetches to `agent_banned` / `institutional_only` hosts and of browser surfaces the policy does not grant |
 | secret hook | `hooks/secret_file_guard.py`, `tools/secret-guard-test/` | PreToolUse deny of reads that would print `connectors/.env` values |
-| hook support | `hooks/deny_receipt.py`, `hooks/_lib/roots.py`, `hooks/_lib/telemetry.py` | deny receipts, machine roots from `host.toml`, locked log appends |
+| hook support | `hooks/deny_receipt.py`, `hooks/notice_budget.py`, `hooks/_lib/roots.py`, `hooks/_lib/telemetry.py` | deny receipts, the once-per-session notice budget (fail-open: without it every notice prints), machine roots from `host.toml`, locked log appends |
 | rule | `rules/literature-access.md` | the prose boundary the hook, the policy and `fetchsrc.py` implement |
 
 Call graph: the user's turn reaches the advisor (Gate A: continuity check, Step 0 routing, Step 0.5 scope
@@ -77,6 +77,13 @@ hook is the same policy at the tool layer for every other fetch path. Evidence r
 - Copyright boundary: short quotations with locator, paraphrase by default, never full sections.
 - P4.5: one JSONL ledger row per load-bearing claim (claim, identifier, locator, access tag, exact support
   span, path to the retrieved text, access route); every numeric or disputed claim gets a row at every depth.
+- Output formats (v1.1.0): twelve; the last four (assumption census, method census, concept lineage, researcher
+  genealogy) are cross-corpus: they need a gathered run corpus of at least five sources and describe that corpus,
+  never the field. Researcher genealogy draws an `advisor` edge only from a stated source; the origin's
+  research-graph tool is not shipped, the table is built by hand.
+- Published reference lists come from `verify/apabib.py` (registry records fetched through the same host policy
+  as `fetchsrc.py`), never from typing; an id whose record cannot be fetched is printed as needs-manual-check with
+  no entry body.
 - Host access: paywalled or agent-banned hosts are handed to the user as a named DOI/URL plus query pack;
   a challenge is a routing signal, never retried with another User-Agent, browser or profile.
 
@@ -135,9 +142,9 @@ Machine tolerance: Python 3.12 or newer (tested on 3.12.7; 3.11 not tested), pyt
 | K1i | `verify/fetchsrc.py --selftest` | exit 0, "0 broken - calibrated" | refused host, challenge, per-host cap (inside, stub transport) |
 | K1j | `verify/staleclaim.py --selftest` | exit 0, "8 cases (5 must-pass / 3 must-fail), 0 broken" | the 3 must-fail cases (inside) |
 | K1k | `verify/citecheck.py --selftest --offline` | exit 0, "107 cases (53 must-pass / 54 must-fail), 0 broken" (without PyMuPDF: 87 cases and "[page-pointer cases skipped: no PyMuPDF]") | the 54 must-fail cases (inside) |
-| K2 | `pytest loop/tests` | exit 0, "54 passed" | (assertions inside, incl. register refusing a FAIL citecheck.json) |
+| K2 | `pytest loop/tests` | exit 0, "76 passed, 2 skipped" (the 2 skipped are the live-registry tests of `test_apabib.py`; `LSE_LIVE_TESTS=1` runs them, and then they send two requests to Crossref) | (assertions inside, incl. register refusing a FAIL citecheck.json) |
 | K3 | `hooks/tests/test_literature_host_guard.py` | exit 0 and "ALL TESTS PASSED" | the D-* deny cases (inside) |
-| K4 | `tools/secret-guard-test/test_secret_file_guard.py` | exit 0 and "failures: 0"; must-deny 50, must-pass 53 | the 50 must-deny shapes; 3 undetermined and 3 unclassifiable-shape (fail-open) are reported, not counted |
+| K4 | `tools/secret-guard-test/test_secret_file_guard.py` | exit 0 and "failures: 0"; must-deny 57, must-pass 57 | the 57 must-deny shapes; 3 undetermined and 3 unclassifiable-shape (fail-open) are reported, not counted |
 | K5 | citecheck support check on `good-run` | support verdict `OK` (span found verbatim) | the same row with "22 um" changed to "48 um" in span and "= 22 μm" to "= 48 μm" in claim: support verdict `FAIL` |
 | K6 | `literature_host_guard.py` fed a WebFetch payload | arXiv URL: silent allow (exit 0, no output) | the IEEE Xplore document URL: `permissionDecision` = `deny` |
 | K7 | `profile-lint.py --root` on three trees | shipped skill root: (0 FAIL, 0 WARN) | `evals/fixtures/routing-collision`: (2, 6); `evals/fixtures/frontmatter-drift`: (2, 0) |
@@ -232,7 +239,7 @@ right one) is a human check; the controls prove the gates, not the judgement.
 ## 9. Declared edits relative to the origin (everything else is byte-identical)
 
 Origin = the author's config home at the release date. `reference-impl/` keeps the origin's layout and is
-rebuilt by the maintainer's refresh script from an explicit file list (92 files, plus 3 derived and 1
+rebuilt by the maintainer's refresh script from an explicit file list (97 files, plus 3 derived and 1
 overlay). Each edit below must hit its stated count or the build stops before writing. Not shipped: see
 `verify/unshipped_paths.txt`.
 
@@ -257,6 +264,10 @@ overlay). Each edit below must hit its stated count or the build stops before wr
 | E5b | `skills/scientific-research-guide/SKILL.md` | the Step 0 example row points at `domains/<domain>.md` and says the public kit ships the manifest empty |
 | E5c | `skills/scientific-research-guide/SKILL.md` | the reference-map line about Layer B base profiles says none ship and points at the expansion guide |
 | E6 | `skills/literature-search-extract/SKILL.md` | the description's routing line for uncited broad sweeps no longer points at an unshipped dispatch file; it names the task class and says the kit ships no such agent |
+| E7 | `skills/scientific-research-guide/references/tier-framework.md` | where §5 routes researcher-genealogy questions to the origin's research-graph tool, a parenthetical says the public kit does not ship that tool and the table is always built by hand (added v1.1.0) |
+| E8 | `skills/literature-search-extract/loop/tests/test_bib_stale.py` | `setUp` remembers the values of the five `LSE_*` variables it overwrites and `tearDown` puts them back; before, `tearDown` removed `LSE_RUN_HOME` and `LSE_BIB_HOME` even when the caller had set them, so the suites after it lost their run home (3 failures when the variables are preset, as `run_controls.py` sets them) (added v1.1.0) |
+| E9 | `skills/literature-search-extract/loop/tests/test_ris_fill.py` | the `BibIds` case sets its own scratch `LSE_RUN_HOME` for the one `build_bib` call; before, it passed only on a machine whose host file names a notes vault or after another suite left the variable set (added v1.1.0) |
+| E10 | `skills/literature-search-extract/loop/tests/test_apabib.py` | the `LiveRegistry` class (two requests to Crossref) runs only when `LSE_LIVE_TESTS=1` is set and the registry answers; before, it ran whenever the machine was online, so K2's count depended on connectivity (added v1.1.0) |
 | R2 | all text files (8 hits) | the lab's round identifier in provenance lines becomes "a research round" (dates and lesson ids kept) |
 | R3 | all text files (11 + 7 + 1 + 0 hits) | the school's library, its guide and its subscription wording become "a university library's", "the library guide", "an institutional subscription"; a fourth rule (a bare school name becomes "the university") is kept as a guard and now hits 0, since E4g handles the one remaining mention |
 | R4 | all text files (6 + 6 hits) | the private notes-vault folder and the private textbook folder become the tokens `<NOTES_VAULT>` and `<TEXTBOOKS>` |
@@ -268,4 +279,7 @@ overlay). Each edit below must hit its stated count or the build stops before wr
 The edits are applied by the maintainer's refresh script, which rebuilds `reference-impl/` into a scratch
 folder, compares it byte-for-byte with the repo copy, and screens every shipped text file against a private
 names list with planted positives; that script, the original strings and the list are not shipped.
-Two small allowances in the screen are synthetic drive-path strings that the hook tests need as input.
+Three small allowances in the screen: two are synthetic drive-path strings that the hook tests need as input;
+the third is the generic Chinese field label for "thesis supervisor" as an NDLTD thesis record lists it, which appears
+twice in the researcher-genealogy template (`output-templates.md`) and is read by the screen's school heuristic (added
+v1.1.0). It is a field label, not a person or an institution, so it stays.

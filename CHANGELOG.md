@@ -3,6 +3,62 @@
 All notable changes to this repository. Versions follow semantic versioning: minor = new capability,
 patch = fix. Format after Keep a Changelog.
 
+## [1.1.0] - 2026-11-18
+
+New capability in the librarian and two hook changes, refreshed from the origin: 19 of the 96 files shipped in
+v1.0.2 changed (77 are byte-identical) and 5 files are added (`apabib.py`, `notice_budget.py`, three test files),
+101 in all. Declared edits E7-E10 and one screen allowance are new, see `docs/BUILD-SPEC.md` §9.
+
+### Added
+
+- Four whole-corpus output formats in `output-format-catalog.md` / `output-templates.md` (twelve in all):
+  assumption census, method census, concept lineage, researcher genealogy. They need a gathered corpus of at
+  least 5 sources and describe that corpus, never the field. `tier-framework.md` §5 points at them.
+- `verify/apabib.py` (+ `loop/tests/test_apabib.py`): APA 7 reference entries generated from DOIs / arXiv ids
+  from registry records (Crossref, DataCite, arXiv API) through the shipped host policy; an id whose record
+  cannot be fetched is printed as needs-manual-check with no entry body (exit 3); `--run` diffs the records
+  against a run's ledger (author order, year, title).
+- `loop/runs.py register` / `inbox.py ingest --apply`: a measured stderr notice when the central bibliography lacks
+  the run's sources, with the refresh command; `register --export-bib` runs it at once (networked, slow).
+  `scripts/zotero_ris_export.py` fills a missing RIS author or year from the registries and keeps both papers
+  when two sources share a cite id (`loop/tests/test_bib_stale.py`, `test_ris_fill.py`).
+- `connectors/textbook_index.py`: cleaner exports, a table-of-contents page check, a typed `toc.json` sidecar,
+  figure extraction with captions read from the figure's bottom edge. `connectors/textbook_ocr.py`: rapidocr and
+  VLM engines next to the Windows engine, chosen per page class, and a per-page text-layer decision. Not
+  exercised here (they need a textbook library); `ocr_bench.py` and its answer file are not shipped.
+- `hooks/notice_budget.py`: once-per-session budget for `literature_host_guard.py` notices; fail-open (a missing
+  or broken budget prints every notice, as before).
+- `verification-gate.md`: set-level check "unknown proper nouns queried, not forwarded" (names the origin's term-log
+  tool, not shipped), and the reference-list tool section.
+
+### Changed
+
+- `secret_file_guard.py` no longer gates a remote URL path (`curl https://host/.env`; `file://` and `C://x/.env` still
+  deny) nor the JS property access `el.dataset.key` (a bare `dataset.key` still denies). Two-sided cases:
+  must-deny 50 -> 57, must-pass 53 -> 57.
+- `literature_host_guard.py`: its notices pass the notice budget (one per host per session); an unlisted-script row is
+  written only when the call runs (a later deny in the same call leaves no row and no count), and `noticed` is set
+  only for a notice that printed. Tests N-13 to N-15.
+- `literature-search-extract` SKILL.md: four detail blocks moved to `references/` (host access policy, central
+  bibliography freshness, reference-list tool, recall-check rationale); line references in `docs/DEVELOPER.md` and the
+  flow diagram's source map re-pointed (several were already two lines off in v1.0.2).
+- `loop/tests`: 54 -> 76 passing, 2 skipped. `docs/EVIDENCE.md` gains four enforcement-map rows; its line numbers are
+  refreshed (14 moved, 0 lost).
+
+### Fixed
+
+- `test_bib_stale.py` removed `LSE_RUN_HOME` / `LSE_BIB_HOME` after each case even when the caller had set them, and
+  `test_ris_fill.py` needed a run home it did not set: with the variables preset (as `verify/run_controls.py` sets
+  them) 3 cases failed. Declared edits E8, E9 (the origin keeps the defect until its own fix lands).
+- `test_apabib.py`'s two live-registry cases ran whenever the machine was online, so K2's count depended on
+  connectivity and a control touched the network; they now need `LSE_LIVE_TESTS=1` (E10).
+
+### Limits (new)
+
+- `runs.py register` calls the origin's research-graph tool (`tools/research-graph/rg.py`) after a register when it is
+  present; it is not shipped, so here the call returns at once and the genealogy table is built by hand. E7 says so in
+  `tier-framework.md`. The unshipped paths the text cites are listed in `verify/unshipped_paths.txt` (class `origin-tool`).
+
 ## [1.0.2] - 2026-11-07
 
 Fixes found by four outside agents' reviews of v1.0.1 (one ran the controls on macOS).
