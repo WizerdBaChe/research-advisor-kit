@@ -617,9 +617,7 @@ def cmd_ingest(a) -> int:
         if not a.apply and any(r["action"] in ("FILE", "FILE+REGISTER", "REGISTER") for r in plan):
             print("dry-run: nothing moved or registered — re-run with --apply")
     if a.apply and any(v == 0 for r in plan for v in r.get("registered", {}).values()):
-        n = stale_notice()          # a full text arrived: the bibliography's access notes are behind
-        if n:
-            print(n)
+        _after_ingest_notice()      # a full text arrived: the bibliography's access notes are behind
     bad = [r for r in plan if r["action"] in ("UNRESOLVED", "COLLISION", "DUPLICATE")
            or any(v != 0 for v in r.get("registered", {}).values())]
     return 3 if bad else 0
@@ -743,6 +741,19 @@ def bib_staleness(run_id: str | None = None) -> dict:
     changed = sorted(k for k in want if k in have and have[k].get("_access") != want[k]["_access"])
     return {"file": str(f), "exists": f.exists(), "missing": missing, "changed": changed,
             "stale": bool(missing or changed or not f.exists())}
+
+
+def _after_ingest_notice() -> None:
+    """The stale-bibliography notice after `ingest --apply`. The ingest already succeeded, so a host with no
+    bibliography folder (LSE_BIB_HOME and NOTES_VAULT unset) prints one "not checked" line instead of
+    ending the command with SystemExit (same line as runs.py `_bib_after_register`)."""
+    try:
+        n = stale_notice()
+    except SystemExit as exc:
+        print(f"central bibliography: not checked ({exc})")
+        return
+    if n:
+        print(n)
 
 
 def stale_notice(run_id: str | None = None) -> str:

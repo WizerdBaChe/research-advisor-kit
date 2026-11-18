@@ -70,7 +70,7 @@ SKILL.md Mode 1 明文依賴該表的 "Use when" 欄推斷 `output_format`（第
 **觸發**：下一次真實 run 碰到不熟的期刊、需要判讀其可信度時。紀錄：`~/.claude/outputs/researcher-tw-borrow-review-2026-09-14.md` §3。
 
 ### A4. 概念帳：Threads 五個 Claude 學術 repo 掃描（2026-09-22）
-**使用者裁定（2026-09-22）：完全不借用程式碼／檔案，只採概念，由我們自己設計實作。** 來源貼文 `threads.com/@aiaccesshub_daily/post/DdfXAlkE6pD`；五個 repo 僅作概念出處，不列為依賴。
+**使用者裁定（2026-09-22）：完全不借用程式碼／檔案，只採概念，由我們自己設計實作。** 來源貼文：一則 Threads 貼文（2026-09-22）；五個 repo 僅作概念出處，不列為依賴。
 - **C1 參考文獻字串衛生**：從已驗證識別碼重建書目字串，並對殘留標記、標點毀損、近似重複標題、DOI 年份與標示年份衝突做機械檢查 → `verify/`。
 - **C2 文獻集層級的共同引用收斂**：對整個 corpus 的參考文獻清單計頻，找出「多數成員都引用」的節點，補 per-seed 追引之不足；區分「抓取失敗」與「零參考文獻」→ `search-sources.md` §Citation chasing（standard／exhaustive）。
 - **C3 內文引用 ↔ 書目互解**：撰寫型交付物中，每個內文引用恰好對應一筆書目、無歧義 → `verify/`。
@@ -94,7 +94,7 @@ SKILL.md Mode 1 明文依賴該表的 "Use when" 欄推斷 `output_format`（第
 | B9 | **存取政策與 hook 的實戰誤判率**（2026-09-11 新增，設計 `~/.claude/references/lse-access-verification-upgrade-design.md`） | 下一次真實文獻 run：(1) `hooks/literature_host_guard.py` 有沒有擋到不該擋的（`telemetry/literature-host-nav.jsonl` 的 `deny` 列逐筆看；誤判走 `report_fp.py --hook literature_host_guard`，3 筆即改列不改 hook）；(2) `fetchsrc.py` 的 `HAND-TO-USER:` 有沒有真的變成交付物的 query pack；(3) 未列主機一輪 3 個的上限會不會在真實 run 裡先撞到——撞到即補列，不放寬 |
 | B10 | **citecheck v2 的數值／metadata 檢查在真實 ledger 上的成本與誤判**（2026-09-11 新增） | 下一次 `standard` 深度 run：每列多填 `expect_title`／`expect_authors`／`access_route` 的實際時間；`numeric` WARN（數字在全文不在 span）出現幾次、有幾次是 span 該延長；`doi-not-yet-active` 有沒有真的碰到。校準 40 案（18 過／22 擋）是想像出來的案例——真實 ledger 才是儀器的驗收（`verification-gate.md` §Why the calibration is not decoration） |
 | B12 | **`textbook_library` connector 首次真實調用**（2026-09-13 新增；定位評估 `~/.claude/references/lse-textbook-corpus-positioning-eval_2026-09-13.md`，規則 `references/textbook-extraction.md`，工具 `connectors/textbook_ocr.py`／`textbook_index.py`） | 下一次要「教科書怎麼定義 X」或研究專案前置詞彙（`canonical_definition` 預設）時：(1) `--search` 命中後有沒有真的只讀命中的頁範圍；(2) ledger 列的 locator 是不是印刷頁碼＋版本、`--locate` 換算與頁首實測一致；(3) 落在 OCR 排除頁時有沒有寫成 gaps 而不是猜；(4) 出處欄位是否只寫「哪本書、哪裡」（使用者裁定 Q1）。**人工必驗（A）尚未做**：抽 2 頁 OCR 文字對照原書、抽 3 個目錄條目核對印刷頁碼、抽 5 條索引詞核對頁碼——做完把結果記回定位評估 §9 |
-| B13 | **OCR 量測集的人工校對與引擎選擇**（2026-11-16 新增；工具 `connectors/ocr_bench.py`、`ocr_bench_gt.json`；評估報告 `~/.claude/outputs/textbook-tooling-review-20261116/評估報告_OCR引擎量測_20261116.md`） | (1) 9 段參考文字由模型抄錄、`checked_by: null`——使用者校對後填名字，CER 的絕對值才算數（引擎之間的排名目前已可用）；(2) 下一本要 OCR 的掃描書：先在量測集加 1–2 段它的頁型，再依類別選 `--engine`；(3) 若要整本改用 VLM：先解決目錄點線的重複迴圈（repeat_penalty 1.1／1.3 無效，CER 0.72／0.61），並量整本排除率（情緒手冊 7/55，winrt 為 0）；(4) GLM-OCR 只有社群 GGUF，Ollama 版在整本規模比 llama.cpp 慢（LocalLLm 報告 §3.4），未對同一權重做引擎對照 |
+| B13 | **OCR 量測集的人工校對與引擎選擇**（2026-11-16 新增；工具 `connectors/ocr_bench.py`、`ocr_bench_gt.json`；評估報告：一份 OCR 引擎量測報告，未出貨） | (1) 9 段參考文字由模型抄錄、`checked_by: null`——使用者校對後填名字，CER 的絕對值才算數（引擎之間的排名目前已可用）；(2) 下一本要 OCR 的掃描書：先在量測集加 1–2 段它的頁型，再依類別選 `--engine`；(3) 若要整本改用 VLM：先解決目錄點線的重複迴圈（repeat_penalty 1.1／1.3 無效，CER 0.72／0.61），並量整本排除率（一本手冊 7/55，winrt 為 0）；(4) GLM-OCR 只有社群 GGUF，Ollama 版在整本規模比 llama.cpp 慢（一份本機 LLM 報告 §3.4），未對同一權重做引擎對照 |
 | B11 | **撤稿批掃首次真跑**（2026-09-11 新增；工具 `verify/citecheck.py --retraction-sweep`，登錄列 `a3-retraction-sweep` 可由 planned → live） | 下一次 Zotero 收尾：對專案 bib JSON 跑一次、記錄 N 筆／耗時／`?` 列數；任何 `RETRACTED` 走 `reflux.py retraction` → `runs.py affected` |
 
 ## C. 長期選項（ops 層，非本 skill 職權）

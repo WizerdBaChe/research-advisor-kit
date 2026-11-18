@@ -577,7 +577,7 @@ def _bib_after_register(run_id: str, export: bool) -> int:
     import inbox  # noqa: E402
     try:
         note = inbox.stale_notice(run_id)
-    except SystemExit as exc:            # LSE_BIB_HOME / NOTES_VAULT unset on this host: nothing to compare
+    except (SystemExit, Exception) as exc:   # LSE_BIB_HOME / NOTES_VAULT unset, or an unreadable file: nothing to compare
         print(f"central bibliography: not checked ({exc})", file=sys.stderr)
         return 0
     if note:

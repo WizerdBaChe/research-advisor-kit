@@ -310,7 +310,7 @@ Concept: adiabatic taper criterion
 are these results independent", grouping papers for a multi-paper deck, or preparing to
 meet people at a conference. It is about PEOPLE; ideas go to §11.
 
-**Query the research graph first** (`tools/research-graph/rg.py`, INV-9: one spec with this
+**Query the research graph first** (`tools/research-graph/rg.py`; **not shipped in the public kit: with no graph, build every row by hand**; INV-9: one spec with this
 section): `rg.py independence <run_id>` gives the clusters and the independence verdict,
 `rg.py who <name>` the affiliations, co-authors and stated advisor edges, and
 `rg.py render section12 <run_id>` this table built from the same edge types. Build rows by hand

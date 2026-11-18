@@ -71,7 +71,7 @@ MUST_DENY = [
     ("Bash", {"command": "cat dataset.key"}),
     ("Bash", {"command": "cat certs/dataset.key"}),
     ("Bash", {"command": "cat C://Users/u/proj/.env"}),           # a drive letter is not a URL scheme
-    ("Read", {"file_path": "D://AIWork/proj/.env"}),
+    ("Read", {"file_path": "D://work/proj/.env"}),
     ("Bash", {"command": "cat ~/.dataset.key"}),                   # a hidden key file, not a property access
     ("Bash", {"command": "python -c \"print(open('.env').read())\""}),
     ("PowerShell", {"command": "Get-Content X:\\synth\\work-root\\PatentsGrabber\\.env"}),
@@ -142,7 +142,7 @@ MUST_PASS = [
     ("Bash", {"command": "python -c \"print(d.keys())\""}),
     ("Bash", {"command": "curl -s --key-status http://127.0.0.1:8000/api/library"}),
     # Narrowing pass 3 (2026-11-09): a remote URL path and a JS dataset property.
-    ("Bash", {"command": "curl -sI https://wizerdbache.com/.env"}),
+    ("Bash", {"command": "curl -sI https://example.org/.env"}),
     ("Bash", {"command": "curl -s -o /dev/null -w '%{http_code}' \"https://example.org/x/.env\""}),
     ("Bash", {"command": "python - <<'EOF'\nprint('const k = el.dataset.key;')\nEOF"}),
     ("Bash", {"command": "cat page.html | grep -n 'btn.dataset.key'"}),

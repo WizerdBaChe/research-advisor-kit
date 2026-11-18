@@ -269,7 +269,8 @@ Run these by hand before P5, and state the result:
   refused) the deliverable says "not queried (tool refused: <reason>)", never unknown. Rule: `ops/20-dispatch.md` §2 (registry `DISPATCH_BRIEF_FACTS`), which
   also binds the brief of any worker dispatched over the sources. (`termlog.py
   check` applies only to a deliverable that writes the 「未經回憶查詢」 mark; this
-  skill's templates do not.)
+  skill's templates do not.) **Public kit: `termlog.py` is not shipped; without it, look each unknown name up by hand
+  (a web search or the source's own glossary), name what you checked in the deliverable, and write "not queried" for any you did not.**
 - **Retrieval currency.** For any claim whose source can change under the
   citation (legal status, a live database record, a web page, a moving standard),
   record the retrieval date. A stable DOI'd article needs none.

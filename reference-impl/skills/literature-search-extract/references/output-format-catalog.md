@@ -27,5 +27,5 @@ describe THAT corpus, never the field — every "most", "first" or "untested" is
 "in this run". Concept lineage follows ideas through citation text; researcher genealogy
 follows people through bylines and training — distinct objects, often run together:
 genealogy tells whether a premise in the assumption census is shared by independent
-groups or by one school (failure mode 7). Origins: Threads `ai.truistic_` 9-prompt post
-(prompts 2, 6, 9) and IG `Dfw3fSvFg_x` academic-genealogy carousel, both 2026-11.
+groups or by one school (failure mode 7). Origins: a Threads 9-prompt post
+(prompts 2, 6, 9) and an Instagram academic-genealogy carousel, both 2026-11.

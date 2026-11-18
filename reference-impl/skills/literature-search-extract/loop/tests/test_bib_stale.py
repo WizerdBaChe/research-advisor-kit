@@ -74,6 +74,27 @@ class BibStale(unittest.TestCase):
         s = inbox.bib_staleness()
         self.assertEqual(s["changed"], ["doi:10.0000/fake.2022.234"])
 
+    def test_no_bibliography_folder_is_not_checked_not_a_crash(self):
+        """LSE_BIB_HOME and NOTES_VAULT both unset: after a successful ingest/register the notice step prints
+        a 'not checked' line and returns; before, `ingest --apply` ended in SystemExit after the files moved."""
+        saved_default = inbox.DEFAULT_BIB
+        os.environ.pop("LSE_BIB_HOME", None)
+        inbox.DEFAULT_BIB = None
+        try:
+            with self.assertRaises(SystemExit):
+                inbox.stale_notice()                          # the unguarded call is what used to escape
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                inbox._after_ingest_notice()                  # must return normally
+            self.assertIn("central bibliography: not checked", out.getvalue())
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                self.assertEqual(runs._bib_after_register("20260903_good-copy", False), 0)
+            self.assertIn("not checked", err.getvalue())
+        finally:
+            inbox.DEFAULT_BIB = saved_default
+            os.environ["LSE_BIB_HOME"] = str(self.env["LSE_BIB_HOME"])
+
 
 if __name__ == "__main__":
     unittest.main()
